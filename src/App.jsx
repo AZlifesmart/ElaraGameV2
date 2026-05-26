@@ -223,10 +223,11 @@ function reducer(s, a) {
     case "STEP_TO": {
       if (s.target === null) return s;
       const dx = s.target - s.px;
-      if (Math.abs(dx) < 6) return { ...s, px: s.target, target: null, moving: false };
+      const maxStep = 680 * (a.dt || 0.016);
+      // Snap to target if we'd reach (or pass) it this frame — no overshoot
+      if (Math.abs(dx) <= maxStep + 2) return { ...s, px: s.target, target: null, moving: false };
       const dir = dx > 0 ? 1 : -1;
-      const step = dir * 680 * (a.dt || 0.016);
-      return { ...s, px: s.px + step, faceDir: dir, moving: true };
+      return { ...s, px: s.px + dir * maxStep, faceDir: dir, moving: true };
     }
     case "CHANGE_TIER": return s; // deprecated
     case "SLEEP_ANIM_TICK": return { ...s, sleepAnim: a.progress };
@@ -1369,6 +1370,110 @@ function SkipButton({ onSkip, label = "SKIP" }) {
     }} onMouseOver={(e) => { e.currentTarget.style.background = C.coral; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = C.coral; }}
        onMouseOut={(e) => { e.currentTarget.style.background = "rgba(8,12,30,0.7)"; e.currentTarget.style.color = C.textCreamDim; e.currentTarget.style.borderColor = "rgba(245,184,46,0.3)"; }}>
       {label} →→
+    </button>
+  );
+}
+
+// ─── DEMO CONTROLS — for presenters: skip anywhere, anytime ──
+function DemoControls({ state, dispatch }) {
+  const [open, setOpen] = useState(false);
+
+  const jumpToBank = () => {
+    dispatch({ type: "OPEN_PANEL", id: "fbank" });
+    setOpen(false);
+  };
+  const jumpToStocks = () => {
+    dispatch({ type: "OPEN_PANEL", id: "stocks" });
+    setOpen(false);
+  };
+  const jumpToSleep = () => {
+    if (state.dayPhase !== "work") {
+      // Skip directly to Day 2 morning, no sleep animation
+      dispatch({ type: "SLEEP_TO_DAY_2" });
+    }
+    setOpen(false);
+  };
+  const jumpToReserve = () => {
+    if (state.dayPhase !== "work") {
+      // First skip to Day 2, then open Reserve
+      dispatch({ type: "SLEEP_TO_DAY_2" });
+      setTimeout(() => dispatch({ type: "OPEN_PANEL", id: "reserve" }), 50);
+    } else {
+      dispatch({ type: "OPEN_PANEL", id: "reserve" });
+    }
+    setOpen(false);
+  };
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{
+        position: "fixed", bottom: 22, right: 22, zIndex: 998,
+        background: "rgba(8,12,30,0.85)",
+        color: C.gold,
+        border: `1.5px solid ${C.gold}`,
+        padding: "10px 18px",
+        fontFamily: FONT_M, fontSize: 10, fontWeight: 800, letterSpacing: "0.3em",
+        cursor: "pointer", borderRadius: 2,
+        backdropFilter: "blur(8px)",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+        transition: "all 0.15s",
+      }} onMouseOver={(e) => { e.currentTarget.style.background = C.gold; e.currentTarget.style.color = "#1a1224"; }}
+         onMouseOut={(e) => { e.currentTarget.style.background = "rgba(8,12,30,0.85)"; e.currentTarget.style.color = C.gold; }}>
+        ⏭ DEMO
+      </button>
+    );
+  }
+
+  return (
+    <div className="popupIn" style={{
+      position: "fixed", bottom: 22, right: 22, zIndex: 998,
+      background: "rgba(8,12,30,0.95)",
+      border: `2px solid ${C.gold}`,
+      borderRadius: 4, padding: "16px 18px",
+      backdropFilter: "blur(12px)",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+      minWidth: 240,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● DEMO · JUMP TO</div>
+        <button onClick={() => setOpen(false)} style={{ background: "transparent", border: "none", color: C.textCreamDim, fontSize: 18, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>×</button>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {state.dayPhase !== "work" && (
+          <>
+            <DemoJumpButton color={C.gold} label="SLEEP NOW" sub="Skip to Day 2 morning" onClick={jumpToSleep} />
+            <DemoJumpButton color={C.coral} label="BANK · FUTURE YOU" sub="Open the life simulator" onClick={jumpToBank} />
+            <DemoJumpButton color={C.teal} label="STOCKS · THE TRADER" sub="Open the trading game" onClick={jumpToStocks} />
+            <DemoJumpButton color={C.purple} label="GO TO RESERVE →" sub="Skip Day 1 entirely, start the meeting" onClick={jumpToReserve} />
+          </>
+        )}
+        {state.dayPhase === "work" && (
+          <>
+            <DemoJumpButton color={C.purple} label="ENTER RESERVE →" sub="Start the committee meeting" onClick={jumpToReserve} />
+            <DemoJumpButton color={C.coral} label="BANK · FUTURE YOU" sub="Open the life simulator" onClick={jumpToBank} />
+            <DemoJumpButton color={C.teal} label="STOCKS · THE TRADER" sub="Open the trading game" onClick={jumpToStocks} />
+          </>
+        )}
+      </div>
+
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid rgba(255,255,255,0.08)`, fontFamily: FONT_M, fontSize: 8, color: C.textCreamDim, letterSpacing: "0.22em", textAlign: "center", fontWeight: 600 }}>
+        PRESENTER CONTROLS
+      </div>
+    </div>
+  );
+}
+
+function DemoJumpButton({ color, label, sub, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      background: "transparent", border: `1px solid rgba(255,255,255,0.1)`, borderLeft: `3px solid ${color}`,
+      padding: "10px 14px", cursor: "pointer", borderRadius: 2, textAlign: "left",
+      transition: "all 0.15s",
+    }} onMouseOver={(e) => { e.currentTarget.style.background = `${color}22`; e.currentTarget.style.borderColor = color; e.currentTarget.style.borderLeftColor = color; }}
+       onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderLeftColor = color; }}>
+      <div style={{ fontFamily: FONT_M, fontSize: 11, fontWeight: 800, color, letterSpacing: "0.18em" }}>{label}</div>
+      <div style={{ fontFamily: FONT_M, fontSize: 9, fontWeight: 500, color: C.textCreamDim, marginTop: 2, letterSpacing: "0.1em" }}>{sub}</div>
     </button>
   );
 }
@@ -3985,7 +4090,7 @@ function YusufBackdrop({ step }) {
   const total = slices.reduce((a, b) => a + b.value, 0);
   let acc = 0;
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <defs>
         <linearGradient id="livingRoom" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#2a1f3a" />
@@ -4081,7 +4186,7 @@ function YusufBackdrop({ step }) {
 function HalimBackdrop({ step }) {
   // Memories scattered as polaroids — they fade in one by one
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <defs>
         <linearGradient id="hallwaySky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3a4470" />
@@ -4140,7 +4245,7 @@ function HalimBackdrop({ step }) {
 function ElderBackdrop({ step }) {
   // Park bench scene
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <defs>
         <linearGradient id="parkSky" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3a4470" />
@@ -4186,7 +4291,7 @@ function ElderBackdrop({ step }) {
 function ProtesterBackdrop({ step }) {
   // Reserve gates with growing crowd
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <rect width="1600" height="700" fill="#0a0f24" />
       <rect width="1600" height="700" fill={C.coral} opacity="0.08" />
       {/* Reserve facade */}
@@ -4240,7 +4345,7 @@ function ProtesterBackdrop({ step }) {
 
 function KidsBackdrop({ step }) {
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <rect width="1600" height="700" fill="#1a1432" />
       {/* Plaza tiles */}
       <rect x="0" y="500" width="1600" height="200" fill="#2a1f3a" />
@@ -4283,7 +4388,7 @@ function KidsBackdrop({ step }) {
 
 function VendorBackdrop({ step }) {
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <rect width="1600" height="700" fill="#1a1432" />
       <rect x="0" y="540" width="1600" height="160" fill="#0a0814" />
       {/* Stall */}
@@ -4313,7 +4418,7 @@ function VendorBackdrop({ step }) {
 
 function JoggerBackdrop({ step }) {
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <defs>
         <linearGradient id="parkSkyJog" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#3a5470" />
@@ -4346,7 +4451,7 @@ function JoggerBackdrop({ step }) {
 
 function TraderBackdrop({ step }) {
   return (
-    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+    <svg viewBox="0 0 1600 700" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       <rect width="1600" height="700" fill="#0a0e22" />
       {/* Glass building exterior */}
       <rect x="200" y="80" width="1200" height="540" fill="#1a2046" />
@@ -5926,7 +6031,31 @@ export default function App() {
     const rect = e.currentTarget.getBoundingClientRect();
     const fx = (e.clientX - rect.left) / rect.width;
     const dir = fx < 0.5 ? -1 : 1;
-    const newTarget = Math.max(140, Math.min(WORLD_W - 140, state.px + dir * 500));
+
+    // Find the nearest NPC or building in the direction of the click
+    const candidates = [];
+    NPCS.forEach((n) => {
+      if ((dir > 0 && n.x > state.px + 30) || (dir < 0 && n.x < state.px - 30)) {
+        candidates.push({ x: n.x, kind: "npc" });
+      }
+    });
+    BUILDINGS.forEach((p) => {
+      if (p.type === "fountain") return;
+      if ((dir > 0 && p.x > state.px + 30) || (dir < 0 && p.x < state.px - 30)) {
+        candidates.push({ x: p.x, kind: "place" });
+      }
+    });
+    candidates.sort((a, b) => Math.abs(a.x - state.px) - Math.abs(b.x - state.px));
+
+    let newTarget;
+    if (candidates.length > 0) {
+      // Stop just before the nearest thing in that direction (within interaction range)
+      newTarget = candidates[0].x - dir * 70;
+    } else {
+      // No thing in that direction — walk a moderate distance
+      newTarget = state.px + dir * 400;
+    }
+    newTarget = Math.max(140, Math.min(WORLD_W - 140, newTarget));
     dispatch({ type: "WALK_TO", x: newTarget });
   };
 
@@ -6025,6 +6154,11 @@ export default function App() {
         })()}
 
         {showIntro && <IntroScreen onStart={() => setShowIntro(false)} />}
+
+        {/* DEMO CONTROLS — floating bottom-right, lets presenter skip anywhere */}
+        {!showIntro && !state.meetingActive && (
+          <DemoControls state={state} dispatch={dispatch} />
+        )}
 
         {/* First-time controls hint */}
         {showControlsHint && !state.openPanel && !state.meetingActive && (
