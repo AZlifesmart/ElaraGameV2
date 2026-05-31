@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   ELARA · v13 · Central Bank Edition · BoE prototype
+   GREAT VOSTON · v20 · Bank of Voston Edition · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -118,7 +118,7 @@ const BUILDINGS = [
   // FINANCIAL (x: 3500 - 4800)
   { id: "fbank", name: "Savings Bank", x: 3700, color: C.bBank, dark: C.bBankD, type: "classical" },
   { id: "stocks", name: "Stock Exchange", x: 4050, color: C.bStocks, dark: C.bStocksD, type: "glass" },
-  { id: "reserve", name: "Elaran Reserve", x: 4500, color: C.bReserve, dark: C.bReserveD, type: "tower" },
+  { id: "reserve", name: "Bank of Voston", x: 4500, color: C.bReserve, dark: C.bReserveD, type: "tower" },
 ];
 
 const PLACES = BUILDINGS;
@@ -446,9 +446,29 @@ function nearestStair() { return null; } // deprecated
 // ─── PLAYER ─────────────────────────────────────────────────
 function Player({ x, y, faceDir, moving }) {
   const [t, setT] = useState(0);
+  // Spawn pop-in: starts at 0 and animates to 1 over ~0.7s on mount
+  const [spawnT, setSpawnT] = useState(0);
   useEffect(() => {
     let raf;
-    const tick = () => { setT(performance.now() / 1000); raf = requestAnimationFrame(tick); };
+    const start = performance.now();
+    const tick = (now) => {
+      setT(now / 1000);
+      // ease-out elastic ish for spawn (0 → 1 over 700ms)
+      const elapsed = (now - start) / 1000;
+      if (elapsed < 0.75) {
+        // overshoot then settle: 0 → 1.4 → 0.85 → 1.08 → 1
+        const p = elapsed / 0.75;
+        let s;
+        if (p < 0.35) s = (p / 0.35) * 1.4;
+        else if (p < 0.55) s = 1.4 - ((p - 0.35) / 0.2) * 0.55;
+        else if (p < 0.75) s = 0.85 + ((p - 0.55) / 0.2) * 0.23;
+        else s = 1;
+        setSpawnT(s);
+      } else {
+        setSpawnT(1);
+      }
+      raf = requestAnimationFrame(tick);
+    };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, []);
@@ -457,9 +477,21 @@ function Player({ x, y, faceDir, moving }) {
   const legR = moving ? -Math.sin(t * 12) * 5 : 0;
   const armL = moving ? -Math.sin(t * 12) * 4 : Math.sin(t * 2) * 0.4;
   const armR = moving ? Math.sin(t * 12) * 4 : -Math.sin(t * 2) * 0.4;
+  // Spawn opacity
+  const spawnOpacity = Math.min(1, spawnT * 1.4);
 
   return (
-    <g transform={`translate(${x},${y + bob}) scale(${1.8 * faceDir}, 1.8)`}>
+    <g transform={`translate(${x},${y + bob}) scale(${1.8 * faceDir * spawnT}, ${1.8 * spawnT})`} opacity={spawnOpacity}>
+      {/* SPAWN DUST PUFFS — only visible during the spawn animation */}
+      {spawnT < 0.95 && (
+        <g opacity={Math.max(0, 1 - spawnT) * 0.7}>
+          <circle cx="-9" cy="22" r={3 + (1 - spawnT) * 6} fill="#fff8ee" opacity={Math.max(0, 0.6 - spawnT * 0.6)} />
+          <circle cx="9" cy="22" r={3 + (1 - spawnT) * 6} fill="#fff8ee" opacity={Math.max(0, 0.6 - spawnT * 0.6)} />
+          <circle cx="0" cy="24" r={4 + (1 - spawnT) * 8} fill={C.gold} opacity={Math.max(0, 0.5 - spawnT * 0.5)} />
+          <circle cx="-5" cy="20" r={2} fill={C.coral} opacity={Math.max(0, 0.6 - spawnT * 0.6)} />
+          <circle cx="6" cy="20" r={2} fill={C.coral} opacity={Math.max(0, 0.6 - spawnT * 0.6)} />
+        </g>
+      )}
       {/* Soft drop shadow */}
       <ellipse cx="0" cy="22" rx="14" ry="3.5" fill="#000" opacity="0.28" />
       {/* Back leg */}
@@ -472,28 +504,33 @@ function Player({ x, y, faceDir, moving }) {
         <rect x="-0.5" y="8" width="4" height="12" fill="#1a2454" rx="1" />
         <rect x="-0.5" y="19" width="5" height="3" fill="#0a0408" rx="0.5" />
       </g>
-      {/* Torso — fitted blazer */}
-      <path d="M -9 -3 Q -10 -8 -6 -10 L 6 -10 Q 10 -8 9 -3 L 11 10 Q 5 12 0 12 Q -5 12 -11 10 Z" fill={C.coral} />
+      {/* Torso — navy fitted blazer */}
+      <path d="M -9 -3 Q -10 -8 -6 -10 L 6 -10 Q 10 -8 9 -3 L 11 10 Q 5 12 0 12 Q -5 12 -11 10 Z" fill="#1a2454" />
       {/* Lapel detail */}
-      <path d="M 0 -8 L -3 -1 L 0 4 Z" fill="#9a1240" opacity="0.5" />
-      <path d="M 0 -8 L 3 -1 L 0 4 Z" fill="#9a1240" opacity="0.3" />
-      {/* Collar */}
-      <path d="M -4 -9 L 0 -6 L 4 -9 L 4 -7 L 0 -5 L -4 -7 Z" fill="#fff8ee" />
-      {/* Back arm */}
+      <path d="M -4 -9 L -7 -3 L -4 4 L -2 4 L -2 -8 Z" fill="#0a0f24" opacity="0.7" />
+      <path d="M 4 -9 L 7 -3 L 4 4 L 2 4 L 2 -8 Z" fill="#0a0f24" opacity="0.7" />
+      {/* Shirt under collar */}
+      <path d="M -2 -8 L 0 -6 L 2 -8 L 2 4 L -2 4 Z" fill="#fff8ee" />
+      {/* Coral tie */}
+      <path d="M -1.2 -5 L 1.2 -5 L 1.5 -2 L -1.5 -2 Z" fill={C.coral} />
+      <path d="M -1.5 -2 L 1.5 -2 L 1 8 L -1 8 Z" fill={C.coral} />
+      {/* Coral pocket square */}
+      <rect x="-8" y="-4" width="2" height="2" fill={C.coral} />
+      {/* Back arm — navy */}
       <g transform={`translate(${armR * 0.3},0)`}>
-        <rect x="-12" y="-3" width="3" height="10" fill="#9a1240" rx="1.2" />
+        <rect x="-12" y="-3" width="3" height="10" fill="#0a0f24" rx="1.2" />
         <circle cx="-10.5" cy="8" r="2" fill="#d4a585" />
       </g>
-      {/* Front arm */}
+      {/* Front arm — navy */}
       <g transform={`translate(${armL * 0.3},0)`}>
-        <rect x="9" y="-3" width="3" height="10" fill={C.coral} rx="1.2" />
+        <rect x="9" y="-3" width="3" height="10" fill="#1a2454" rx="1.2" />
         <circle cx="10.5" cy="8" r="2" fill="#d4a585" />
       </g>
       {/* Neck */}
       <rect x="-2" y="-9" width="4" height="3" fill="#d4a585" />
       {/* Head */}
       <ellipse cx="0" cy="-16" rx="8" ry="9" fill="#d4a585" />
-      {/* Hair — short side-part */}
+      {/* Hair — neat dark side-part */}
       <path d="M -8 -19 Q -8 -25 -2 -25 L 5 -25 Q 8 -24 8 -20 L 8 -16 Q 6 -19 3 -19 L -7 -19 Z" fill="#1a0c08" />
       <path d="M 1 -23 Q 4 -22 6 -19" stroke="#3a2418" strokeWidth="0.5" fill="none" />
       {/* Subtle ear */}
@@ -504,9 +541,12 @@ function Player({ x, y, faceDir, moving }) {
       {/* Eyes (looking slightly forward) */}
       <ellipse cx="-2.5" cy="-15" rx="0.9" ry="1.1" fill="#1a0c08" />
       <ellipse cx="2.5" cy="-15" rx="0.9" ry="1.1" fill="#1a0c08" />
+      {/* Eye highlights */}
+      <circle cx="-2.2" cy="-15.3" r="0.3" fill="#fff8ee" />
+      <circle cx="2.8" cy="-15.3" r="0.3" fill="#fff8ee" />
       {/* Mouth — slight subtle line */}
       <path d="M -1.5 -11.5 Q 0 -10.8 1.5 -11.5" stroke="#5a2418" strokeWidth="0.5" fill="none" strokeLinecap="round" />
-      {/* Reserve lanyard around neck — tiny pink badge */}
+      {/* Bank of Voston lanyard with gold badge */}
       <line x1="-2" y1="-7" x2="0" y2="-2" stroke="#1a0c08" strokeWidth="0.5" />
       <rect x="-1" y="-2" width="2" height="2.5" fill={C.gold} stroke="#1a0c08" strokeWidth="0.3" />
     </g>
@@ -912,6 +952,10 @@ function NpcSprite({ npc, isActive }) {
       {/* Ear */}
       <circle cx="-6.5" cy="-15" r="1.3" fill={L.skin} opacity="0.7" />
 
+      {/* Eyebrows — defined like in the portrait assets */}
+      <rect x="-4" y="-17.2" width="2.2" height="0.7" fill={L.hair} rx="0.3" />
+      <rect x="1.8" y="-17.2" width="2.2" height="0.7" fill={L.hair} rx="0.3" />
+
       {/* Glasses (elder) */}
       {L.props === "glasses" && (
         <>
@@ -921,11 +965,13 @@ function NpcSprite({ npc, isActive }) {
         </>
       )}
 
-      {/* Eyes */}
+      {/* Eyes — defined with highlight */}
       {L.props !== "glasses" && (
         <>
           <ellipse cx="-2.5" cy="-15" rx="0.8" ry="1" fill="#1a0c08" />
           <ellipse cx="2.5" cy="-15" rx="0.8" ry="1" fill="#1a0c08" />
+          <circle cx="-2.3" cy="-15.3" r="0.25" fill="#fff8ee" />
+          <circle cx="2.7" cy="-15.3" r="0.25" fill="#fff8ee" />
         </>
       )}
       {L.props === "glasses" && (
@@ -999,7 +1045,7 @@ function LightShaft({ x, y, w, h, color = "#fff8ee", opacity = 0.12 }) {
 // ═══ PULSE-INSPIRED UPGRADES ═══════════════════════════════
 // New shared components borrowed from the Pulse prototype:
 // live vitals, transmission diagram, ambient ticker, approval
-// meter. All rendered in Elara's warm cream/coral/gold palette
+// meter. All rendered in Great Voston's warm cream/coral/gold palette
 // instead of the cold bioluminescent Pulse aesthetic.
 // ════════════════════════════════════════════════════════════
 
@@ -1159,7 +1205,7 @@ function MiniTransmission({ state, hoveredRate, hoveredQE, hoveredMP, label }) {
   const qe = hoveredQE !== undefined ? hoveredQE : (state.policy?.qe ?? 0);
   const mp = hoveredMP !== undefined ? hoveredMP : (state.policy?.macroPru ?? 0);
 
-  // Six sectors arranged in Elara's hex layout
+  // Six sectors arranged in Great Voston's hex layout
   const sectors = [
     { id: "house",  short: "HH", name: "HOUSEHOLDS",  color: C.rose,   x: 0.50, y: 0.18 },
     { id: "firm",   short: "FM", name: "FIRMS",       color: C.gold,   x: 0.18, y: 0.38 },
@@ -1865,7 +1911,7 @@ function HUD({ state }) {
         <div style={{ width: 12, height: 28, background: C.gold, borderRadius: 1 }} />
         <div style={{ width: 12, height: 28, background: C.teal, borderRadius: 1 }} />
         <div style={{ marginLeft: 6 }}>
-          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.ink, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>ELARA</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.ink, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>GREAT VOSTON</div>
           <div style={{ fontFamily: FONT_H, fontSize: 14, color: C.coral, fontWeight: 600, lineHeight: 1, marginTop: 1 }}>the living economy</div>
         </div>
       </div>
@@ -1949,7 +1995,7 @@ function PhonePanel({ state, dispatch }) {
         <div style={{ height: "100%", background: C.surface2, borderRadius: 24, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 16px", fontFamily: FONT_M, fontSize: 11, color: C.ink, fontWeight: 600 }}>
             <span>8:00 AM · MON</span>
-            <span style={{ color: C.coral }}>● Elaran 5G</span>
+            <span style={{ color: C.coral }}>● Vostonian 5G</span>
           </div>
           <div style={{ display: "flex", gap: 4, padding: "8px 8px", borderBottom: `1px solid ${C.border}` }}>
             {[{ id: "msg", icon: "💬", label: "Messages" }, { id: "news", icon: "📰", label: "News" }, { id: "notes", icon: "📓", label: "Notes" }, { id: "wallet", icon: "💼", label: "Wallet" }].map((t) => (
@@ -1995,7 +2041,7 @@ function PhonePanel({ state, dispatch }) {
               <div>
                 <div style={{ fontSize: 9, fontFamily: FONT_M, color: C.coral, letterSpacing: "0.2em", marginBottom: 8, fontWeight: 700 }}>THIS MORNING</div>
                 {[
-                  { p: "Elaran Times", t: `Inflation at ${pct(state.inflation)}: families squeezed`, c: C.coral },
+                  { p: "Voston Times", t: `Inflation at ${pct(state.inflation)}: families squeezed`, c: C.coral },
                   { p: "Daily Marka", t: "MPC meets this week. Rate decision in spotlight.", c: C.gold },
                   { p: "Varena Post", t: "Cost of living tops public concern, polling shows", c: C.coral },
                   { p: "Markets", t: "Keldra Tech up 4% on AI deal. Rail stocks flat.", c: C.green },
@@ -2124,7 +2170,7 @@ function MeetingRoom({ state, dispatch }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● LIVE · MONETARY POLICY COMMITTEE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>TUESDAY · 09:00 GMT · ELARAN RESERVE</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>TUESDAY · 09:00 GMT · BANK OF VOSTON</div>
       </div>
 
       {/* PULSE-INSPIRED: live vitals strip across all decision phases */}
@@ -2145,7 +2191,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v18</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v20</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -2163,13 +2209,13 @@ function ActBriefing({ state, dispatch }) {
   const cur = lines[step] || lines[0];
   const currentName = cur?.sp?.toLowerCase() || "";
 
-  // Member seats around a long oak table
+  // Member seats around a long oak table — lifted UP so the bottom dialogue card doesn't cover them
   const seats = [
-    { id: "vega",   x: 130, y: 350, name: "VEGA",   role: "ECONOMIST",   c: C.coral,  hair: "#1a0c08", side: "left" },
-    { id: "okafor", x: 280, y: 380, name: "OKAFOR", role: "DOVE",        c: C.blue,   hair: "#2a1810", side: "left" },
-    { id: "nara",   x: 500, y: 400, name: "NARA",   role: "GOVERNOR",    c: C.teal,   hair: "#1a0c08", side: "head" },
-    { id: "liana",  x: 720, y: 380, name: "LIANA",  role: "COMMS",       c: C.purple, hair: "#3a1818", side: "right" },
-    { id: "hilal",  x: 870, y: 350, name: "HILAL",  role: "STABILITY",   c: C.gold,   hair: "#e8ddc8", side: "right" },
+    { id: "vega",   x: 130, y: 230, name: "VEGA",   role: "ECONOMIST",   c: C.coral,  hair: "#1a0c08", side: "left" },
+    { id: "okafor", x: 280, y: 260, name: "OKAFOR", role: "DOVE",        c: C.blue,   hair: "#2a1810", side: "left" },
+    { id: "nara",   x: 500, y: 280, name: "NARA",   role: "GOVERNOR",    c: C.teal,   hair: "#1a0c08", side: "head" },
+    { id: "liana",  x: 720, y: 260, name: "LIANA",  role: "COMMS",       c: C.purple, hair: "#3a1818", side: "right" },
+    { id: "hilal",  x: 870, y: 230, name: "HILAL",  role: "STABILITY",   c: C.gold,   hair: "#e8ddc8", side: "right" },
   ];
 
   return (
@@ -2227,7 +2273,7 @@ function ActBriefing({ state, dispatch }) {
           { x: 590, name: "GOV. KESEDE", years: "2014-2021" },
           { x: 760, name: "GOV. NIYI", years: "2021-2024" },
         ].map((p, i) => (
-          <g key={i} transform={`translate(${p.x}, 95)`}>
+          <g key={i} transform={`translate(${p.x}, 55)`}>
             <rect x="0" y="0" width="120" height="150" fill="#0a0408" stroke={C.gold} strokeWidth="3" />
             <rect x="6" y="6" width="108" height="138" fill="#2a1f3a" />
             {/* Portrait silhouette */}
@@ -2282,6 +2328,21 @@ function ActBriefing({ state, dispatch }) {
           const isCurrent = currentName === s.id;
           return (
             <g key={s.id} transform={`translate(${s.x}, ${s.y})`}>
+              {/* Spotlight beam from above — current speaker only */}
+              {isCurrent && (
+                <g style={{ pointerEvents: "none" }}>
+                  <defs>
+                    <linearGradient id={`spot-${s.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={s.c} stopOpacity="0" />
+                      <stop offset="40%" stopColor={s.c} stopOpacity="0.18" />
+                      <stop offset="100%" stopColor={s.c} stopOpacity="0.45" />
+                    </linearGradient>
+                  </defs>
+                  <polygon points={`-12,-${s.y - 5} 12,-${s.y - 5} 50,40 -50,40`} fill={`url(#spot-${s.id})`}>
+                    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.6s" repeatCount="indefinite" />
+                  </polygon>
+                </g>
+              )}
               {/* Pulse ring for current speaker */}
               {isCurrent && (
                 <circle r="58" fill={s.c} opacity="0.2">
@@ -2384,25 +2445,26 @@ function ActBriefing({ state, dispatch }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● LIVE · MONETARY POLICY COMMITTEE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FLOOR 8 · ELARAN RESERVE</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FLOOR 8 · BANK OF VOSTON</div>
       </div>
 
-      {/* Dialogue card overlay — bottom-anchored, doesn't cover the room */}
+      {/* Dialogue card — bottom strip, more compact so committee remains visible */}
       {cur && (
         <div key={step} className="popupIn" style={{
-          position: "absolute", bottom: 64, left: "50%", transform: "translateX(-50%)",
-          width: "min(880px, 88%)", background: "rgba(8,8,16,0.94)",
-          borderTop: `3px solid ${cur.c}`, borderRadius: 4, padding: "20px 28px",
-          boxShadow: "0 -20px 60px rgba(0,0,0,0.7)",
+          position: "absolute", bottom: 56, left: "50%", transform: "translateX(-50%)",
+          width: "min(840px, 88%)", background: "rgba(8,8,16,0.92)",
+          borderTop: `3px solid ${cur.c}`, borderRadius: 4, padding: "14px 22px",
+          boxShadow: "0 -16px 50px rgba(0,0,0,0.6)",
+          backdropFilter: "blur(4px)",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: cur.c, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_D, fontWeight: 800, fontSize: 20 }}>{cur.sp[0]}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: cur.c, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_D, fontWeight: 800, fontSize: 16 }}>{cur.sp[0]}</div>
             <div>
-              <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.surface, fontWeight: 800 }}>{cur.sp}</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: cur.c, letterSpacing: "0.22em", fontWeight: 800 }}>{cur.role.toUpperCase()}</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.surface, fontWeight: 800, lineHeight: 1 }}>{cur.sp}</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 8, color: cur.c, letterSpacing: "0.22em", fontWeight: 800, marginTop: 3 }}>{cur.role.toUpperCase()}</div>
             </div>
           </div>
-          <div style={{ fontFamily: FONT_D, fontSize: 20, color: C.textCream, lineHeight: 1.4, fontWeight: 500, letterSpacing: "-0.005em" }}>
+          <div style={{ fontFamily: FONT_D, fontSize: 17, color: C.textCream, lineHeight: 1.35, fontWeight: 500, letterSpacing: "-0.005em" }}>
             {cur.t}
           </div>
         </div>
@@ -2569,7 +2631,7 @@ function ActRateReaction({ state, dispatch }) {
   // Composed reaction wall
   const reactions = [
     { type: "headline", color: a1 === "cut-hard" ? C.red : isHike ? C.coral : a1 === "cut" ? C.teal : C.gold,
-      who: "VARENA TIMES · BREAKING",
+      who: "VOSTON TIMES · BREAKING",
       text: a1 === "cut-hard" ? "RESERVE CUTS HARD — INFLATION FEARS EXPLODE" :
             a1 === "cut" ? "RESERVE EASES — MORTGAGE RELIEF, INFLATION DOUBT" :
             a1 === "hold" ? "RESERVE HOLDS — 'PARALYSIS' SAYS PRESS" :
@@ -2847,7 +2909,7 @@ function StockExchangePanel({ state, dispatch }) {
   // 6 stocks
   const STOCKS_INIT = [
     { sym: "TECH", name: "Verdane Tech",     base: 120, vol: 0.04, color: C.coral,  sector: "tech",   pos: 0, dividend: 0,    sensitivity: { tech: 1.4, rate: -0.6, oil: 0,    housing: 0 } },
-    { sym: "BANK", name: "Bank of Elara",    base: 88,  vol: 0.02, color: C.teal,   sector: "banks",  pos: 0, dividend: 0.04, sensitivity: { tech: 0,   rate: 1.2,  oil: 0,    housing: 0.4 } },
+    { sym: "BANK", name: "Bank of Voston",    base: 88,  vol: 0.02, color: C.teal,   sector: "banks",  pos: 0, dividend: 0.04, sensitivity: { tech: 0,   rate: 1.2,  oil: 0,    housing: 0.4 } },
     { sym: "OIL",  name: "Varena Petroleum", base: 64,  vol: 0.05, color: C.gold,   sector: "oil",    pos: 0, dividend: 0.06, sensitivity: { tech: 0,   rate: -0.3, oil: 1.6,  housing: 0 } },
     { sym: "HOMES",name: "Keldra Homes",     base: 42,  vol: 0.03, color: C.purple, sector: "homes",  pos: 0, dividend: 0.03, sensitivity: { tech: 0,   rate: -1.5, oil: 0,    housing: 1.4 } },
     { sym: "GOLD", name: "Gold Bullion ETF", base: 195, vol: 0.015,color: C.gold,   sector: "gold",   pos: 0, dividend: 0,    sensitivity: { tech: -0.3,rate: -0.5, oil: 0.4,  housing: 0 } },
@@ -3366,7 +3428,7 @@ function BankPanel({ state, dispatch }) {
         </div>
 
         <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF ELARA · "INVEST EARLY · INVEST OFTEN"</div>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF VOSTON · "INVEST EARLY · INVEST OFTEN"</div>
         </div>
       </div>
     );
@@ -4755,7 +4817,7 @@ function NewsroomPress({ state, dispatch }) {
   // Three big headlines, one per second-ish, dramatic typewriter
   const headlines = [
     {
-      paper: "VARENA TIMES",
+      paper: "VOSTON TIMES",
       mast: "Quality journalism since 1924",
       kicker: "BREAKING · MONETARY POLICY",
       big: a1 === "raise" ? "RESERVE STRIKES" : "RESERVE HOLDS",
@@ -5420,7 +5482,7 @@ function ConsequenceMontage({ state, dispatch }) {
   const scenes = [
     {
       type: "headline",
-      paper: "VARENA TIMES",
+      paper: "VOSTON TIMES",
       color: hike ? C.coral : cut ? C.teal : C.red,
       bigHeadline: hike ? "RESERVE STRIKES" : cut ? "RESERVE BLINKS" : "RESERVE FROZEN AT THE WHEEL",
       subhead: hike ? `Rate hike to ${pct(rate)} — Governor invokes 'discipline'. Mortgage holders reel across Varena.` : cut ? `Cut to ${pct(rate)} sparks borrower relief — and immediate inflation fears.` : `Hold at ${pct(rate)} while inflation runs at ${pct(state.inflation)}. Critics call it 'paralysis'. Editorial pages: 'do something'.`,
@@ -5763,15 +5825,30 @@ function Popups({ popups, dispatch }) {
 
 // ─── INTRO ──────────────────────────────────────────────────
 function IntroScreen({ onStart }) {
+  // Sequential reveal: 0=sky only, 1=buildings rise, 2=title text, 3=reserve glows, 4=desc+button
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase(1), 800),    // buildings rise
+      setTimeout(() => setPhase(2), 2200),   // title appears
+      setTimeout(() => setPhase(3), 4400),   // reserve glow on
+      setTimeout(() => setPhase(4), 5600),   // description + button
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  // Allow click-to-skip to end of animation
+  const skip = () => setPhase(4);
+
   return (
-    <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 50, overflow: "hidden" }}>
+    <div onClick={phase < 4 ? skip : undefined} style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 50, overflow: "hidden", cursor: phase < 4 ? "pointer" : "default" }}>
       {/* Letterbox top bar */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 48, background: "#000", zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v18 · CINEMATIC EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v20 · GREAT VOSTON EDITION</div>
       </div>
 
       {/* Full-bleed cityscape */}
@@ -5812,13 +5889,22 @@ function IntroScreen({ onStart }) {
         {/* Mid skyline */}
         <path d="M 0 640 L 60 640 L 60 580 L 100 580 L 100 620 L 160 620 L 160 540 L 220 540 L 220 600 L 280 600 L 280 560 L 340 560 L 340 620 L 400 620 L 400 580 L 460 580 L 460 640 L 520 640 L 520 590 L 580 590 L 580 620 L 640 620 L 640 540 L 720 540 L 720 620 L 1600 620 L 1600 900 L 0 900 Z" fill="#0f1530" />
 
-        {/* Foreground: the financial district */}
-        <g>
+        {/* Foreground: the financial district — rises from below */}
+        <g style={{
+          transformOrigin: "center bottom",
+          transform: phase >= 1 ? "translateY(0)" : "translateY(360px)",
+          opacity: phase >= 1 ? 1 : 0,
+          transition: "transform 1.4s cubic-bezier(0.34, 1.2, 0.5, 1), opacity 0.8s ease-out",
+        }}>
           {/* The Reserve — neoclassical monument with dome */}
           <g transform="translate(800, 540)">
-            {/* Aura */}
-            <circle cx="0" cy="0" r="280" fill={C.gold} opacity="0.12" />
-            <circle cx="0" cy="-40" r="160" fill={C.goldBright} opacity="0.2" />
+            {/* Aura — pulses on phase >= 3 */}
+            <circle cx="0" cy="0" r="280" fill={C.gold} style={{ opacity: phase >= 3 ? 0.28 : 0.06, transition: "opacity 1.2s" }}>
+              {phase >= 3 && <animate attributeName="opacity" values="0.18;0.4;0.18" dur="2.4s" repeatCount="indefinite" />}
+            </circle>
+            <circle cx="0" cy="-40" r="160" fill={C.goldBright} style={{ opacity: phase >= 3 ? 0.45 : 0.08, transition: "opacity 1.2s" }}>
+              {phase >= 3 && <animate attributeName="opacity" values="0.25;0.6;0.25" dur="2.4s" repeatCount="indefinite" />}
+            </circle>
             {/* Main body */}
             <rect x="-100" y="0" width="200" height="180" fill={C.gold} />
             <rect x="-100" y="0" width="200" height="180" fill="url(#skyGrad)" opacity="0.3" />
@@ -5839,6 +5925,17 @@ function IntroScreen({ onStart }) {
             <rect x="-3" y="-90" width="6" height="30" fill="#0a0f24" />
             <polygon points="-10,-90 10,-90 5,-100 -5,-100" fill={C.coral} />
             <circle cx="0" cy="-100" r="3" fill={C.gold} />
+            {/* Extra glow rim when activated */}
+            {phase >= 3 && (
+              <g>
+                <rect x="-100" y="0" width="200" height="180" fill={C.goldBright} opacity="0.15">
+                  <animate attributeName="opacity" values="0.05;0.25;0.05" dur="2.4s" repeatCount="indefinite" />
+                </rect>
+                <ellipse cx="0" cy="-30" rx="45" ry="35" fill="#fff8ee" opacity="0.3">
+                  <animate attributeName="opacity" values="0.15;0.45;0.15" dur="2.4s" repeatCount="indefinite" />
+                </ellipse>
+              </g>
+            )}
             {/* Steps */}
             <rect x="-130" y="170" width="260" height="6" fill={C.bReserveD} />
             <rect x="-140" y="176" width="280" height="6" fill="#3a2418" />
@@ -5893,36 +5990,69 @@ function IntroScreen({ onStart }) {
         ))}
       </svg>
 
-      {/* Title overlay — centred, bold, cinematic */}
+      {/* Title overlay — sequential phased reveal */}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", zIndex: 10, padding: "0 60px" }}>
-        <div style={{ fontFamily: FONT_H, fontSize: 36, color: C.coral, fontWeight: 600, marginBottom: 8, opacity: 0.95, animation: "fadeIn 1s 0.2s both" }}>a central-bank story</div>
-        <div style={{ fontFamily: FONT_D, fontSize: 220, color: C.textCream, fontWeight: 900, letterSpacing: "-0.08em", lineHeight: 0.8, textShadow: "0 12px 60px rgba(0,0,0,0.7)", animation: "fadeIn 1.2s 0.5s both", marginBottom: 4 }}>ELARA</div>
-        <div style={{ fontFamily: FONT_H, fontSize: 36, color: C.gold, fontWeight: 600, animation: "fadeIn 1s 0.8s both" }}>the living economy</div>
+        <div style={{
+          fontFamily: FONT_H, fontSize: 36, color: C.coral, fontWeight: 600, marginBottom: 8,
+          opacity: phase >= 2 ? 0.95 : 0,
+          transform: phase >= 2 ? "translateY(0)" : "translateY(14px)",
+          transition: "opacity 0.9s 0.0s, transform 0.9s 0.0s",
+        }}>a central-bank story</div>
+        <div style={{
+          fontFamily: FONT_D, fontSize: 160, color: C.textCream, fontWeight: 900,
+          letterSpacing: "-0.06em", lineHeight: 0.85,
+          textShadow: "0 12px 60px rgba(0,0,0,0.7)",
+          marginBottom: 4,
+          opacity: phase >= 2 ? 1 : 0,
+          animation: phase >= 2 ? "letterPop 1.1s 0.4s both" : "none",
+        }}>GREAT VOSTON</div>
+        <div style={{
+          fontFamily: FONT_H, fontSize: 36, color: C.gold, fontWeight: 600,
+          opacity: phase >= 2 ? 1 : 0,
+          transform: phase >= 2 ? "translateY(0)" : "translateY(14px)",
+          transition: "opacity 0.9s 1.2s, transform 0.9s 1.2s",
+        }}>the living economy</div>
 
-        <div style={{ marginTop: 50, maxWidth: 720, textAlign: "center", animation: "fadeIn 1s 1.4s both" }}>
+        <div style={{
+          marginTop: 50, maxWidth: 720, textAlign: "center",
+          opacity: phase >= 4 ? 1 : 0,
+          transform: phase >= 4 ? "translateY(0)" : "translateY(20px)",
+          transition: "opacity 0.8s 0.0s, transform 0.8s 0.0s",
+        }}>
           <p style={{ fontFamily: FONT_D, fontSize: 22, color: C.textCream, lineHeight: 1.45, margin: 0, fontWeight: 500 }}>
             Today: walk through Varena and meet the people who'll feel your decisions.<br/>
-            Tomorrow: walk into the Reserve and decide.
+            Tomorrow: walk into the Bank of Voston and decide.
           </p>
         </div>
 
         <button onClick={onStart} style={{
           marginTop: 48, background: C.coral, color: "#fff", border: `2px solid ${C.gold}`,
           padding: "22px 64px", fontFamily: FONT_M, fontSize: 14, fontWeight: 800, letterSpacing: "0.36em",
-          cursor: "pointer", boxShadow: `0 24px 80px ${C.coral}, 0 0 0 6px rgba(245,184,46,0.18)`, borderRadius: 2,
-          animation: "fadeIn 1s 1.8s both",
+          cursor: phase >= 4 ? "pointer" : "default",
+          boxShadow: `0 24px 80px ${C.coral}, 0 0 0 6px rgba(245,184,46,0.18)`, borderRadius: 2,
+          opacity: phase >= 4 ? 1 : 0,
+          transform: phase >= 4 ? "translateY(0)" : "translateY(20px)",
+          transition: "opacity 0.8s 0.4s, transform 0.8s 0.4s, box-shadow 0.15s",
+          pointerEvents: phase >= 4 ? "auto" : "none",
           display: "inline-flex", alignItems: "center", gap: 14,
-          transition: "transform 0.15s, box-shadow 0.15s",
-        }} onMouseOver={(e) => { e.currentTarget.style.transform = "scale(1.04)"; e.currentTarget.style.boxShadow = `0 30px 100px ${C.coral}, 0 0 0 10px rgba(245,184,46,0.28)`; }}
+        }} onMouseOver={(e) => { if (phase >= 4) { e.currentTarget.style.transform = "scale(1.04)"; e.currentTarget.style.boxShadow = `0 30px 100px ${C.coral}, 0 0 0 10px rgba(245,184,46,0.28)`; } }}
            onMouseOut={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = `0 24px 80px ${C.coral}, 0 0 0 6px rgba(245,184,46,0.18)`; }}>
           BEGIN
           <span style={{ fontSize: 20, animation: "pulse 1.6s infinite" }}>→</span>
         </button>
+
+        {/* "click to skip" hint during animation */}
+        {phase < 4 && (
+          <div style={{
+            position: "absolute", bottom: 80, fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim,
+            letterSpacing: "0.28em", opacity: 0.6, animation: "pulse 2s infinite",
+          }}>CLICK ANYWHERE TO SKIP</div>
+        )}
       </div>
 
       {/* Bottom letterbox */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 48, background: "#000", zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>VARENA · CAPITAL OF ELARA · POPULATION 9.8M</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>VARENA · CAPITAL OF GREAT VOSTON · POPULATION 9.8M</div>
         <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● ENTER FULLSCREEN FOR BEST EXPERIENCE</div>
       </div>
     </div>
@@ -5963,7 +6093,7 @@ export default function App() {
     if (showIntro) return;
     const NOTIFS = [
       { from: "YUSUF", icon: "💬", color: C.coral, title: "Bro, my landlord just messaged. Rent up again.", body: "Third time this year." },
-      { from: "VARENA TIMES", icon: "📰", color: C.purple, title: "Food prices jump again across Elara", body: "Grocery basket up 6% this month." },
+      { from: "VOSTON TIMES", icon: "📰", color: C.purple, title: "Food prices jump again across Great Voston", body: "Grocery basket up 6% this month." },
       { from: "AMARA", icon: "💬", color: C.bMarket, title: "Hi love, can I get a price on this oil?", body: "Suppliers won't talk. Everything's moving." },
       { from: "VARNGRAM", icon: "📱", color: C.rose, title: "@finance_bro_22 just posted", body: "\"This is why everyone should be buying gold rn 🚀\"" },
       { from: "BANK ALERT", icon: "💰", color: C.gold, title: "Your savings earned ₺1.20 in interest", body: "Set up auto-save to grow it faster." },
@@ -6079,6 +6209,11 @@ export default function App() {
         @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
         @keyframes scan-line { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
         @keyframes glowPulse { 0%, 100% { filter: drop-shadow(0 0 6px currentColor); } 50% { filter: drop-shadow(0 0 16px currentColor); } }
+        @keyframes riseUp { from { transform: translateY(120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes reserveGlow { 0%, 100% { opacity: 0.4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.04); } }
+        @keyframes letterPop { 0% { opacity: 0; transform: scale(0.3) translateY(40px); filter: blur(10px); } 60% { opacity: 1; transform: scale(1.08) translateY(0); filter: blur(0); } 100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); } }
+        @keyframes spawnPop { 0% { opacity: 0; transform: scale(0) translateY(-40px); } 35% { opacity: 1; transform: scale(1.4) translateY(0); } 55% { transform: scale(0.85) translateY(0); } 75% { transform: scale(1.08) translateY(0); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes spawnDust { 0% { opacity: 0; transform: scale(0); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(2.4); } }
         .popupIn { animation: popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
         input[type=range] { height: 6px; -webkit-appearance: none; background: ${C.surface3}; border-radius: 3px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: ${C.coral}; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(26,16,8,0.3); }
@@ -6129,7 +6264,7 @@ export default function App() {
         {state.montageActive && <ConsequenceMontage state={state} dispatch={dispatch} />}
         {state.sleepAnim > 0 && <SleepAnimation state={state} dispatch={dispatch} />}
         {state.openPanel === "reserve-locked" && (
-          <PanelShell title="Locked until Tuesday" sub="The Elaran Reserve" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
+          <PanelShell title="Locked until Tuesday" sub="The Bank of Voston" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
             <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, marginTop: 0, marginBottom: 14 }}>The security guard checks her clipboard. <em>"You don't start until tomorrow. Get some rest. Sort your own affairs out. Walk the city if you like — you'll be making decisions for it soon enough."</em></p>
             <div style={{ background: `${C.gold}15`, padding: "12px 14px", borderLeft: `3px solid ${C.gold}`, borderRadius: 4, fontSize: 13, color: C.text, lineHeight: 1.55 }}>
               <strong style={{ color: C.gold }}>Today's job:</strong> live your own financial life. Try the Bank's <em>Future You</em> game. Try the Stock Exchange. Talk to people on the street. Sleep when you've done three things.
@@ -6137,7 +6272,7 @@ export default function App() {
           </PanelShell>
         )}
         {state.openPanel === "reserve" && !state.meetingActive && state.briefingDone && (
-          <PanelShell title="Elaran Reserve · Floor 8" sub="After the meeting" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
+          <PanelShell title="Bank of Voston · Floor 8" sub="After the meeting" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
             <p style={{ color: C.text }}>The committee's gone home. The decision is made. The rate is <strong>{pct(state.interestRate)}</strong>. You should walk the city and see how it's landing.</p>
           </PanelShell>
         )}
