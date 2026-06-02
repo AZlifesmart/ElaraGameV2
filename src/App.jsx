@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   GREAT VOSTON · v21 · Bank of Voston Edition · BoE prototype
+   GREAT VOSTON · v22 · Bank of Voston Edition · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -2191,7 +2191,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v21</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v22</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -3227,6 +3227,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
   const [stress, setStress] = useState(50);
   const [happiness, setHappiness] = useState(50);
   const [shocks, setShocks] = useState([]);
+  const [timeline, setTimeline] = useState([{ month: 0, emergency: 0, debtBal: 0, stress: 50, happiness: 50 }]);
   const [running, setRunning] = useState(false);
 
   const NEIGHBOURS = {
@@ -3324,6 +3325,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
       setDebtBal(nextDebt);
       setStress(nextStress);
       setHappiness(nextHappiness);
+      setTimeline(t => [...t, { month: month + 1, emergency: nextEmergency, debtBal: nextDebt, stress: nextStress, happiness: nextHappiness }]);
       setMonth(m => m + 1);
     }, 600);
     return () => clearTimeout(t);
@@ -3350,7 +3352,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, maxWidth: 1100, width: "100%" }}>
             {Object.entries(NEIGHBOURS).map(([id, n]) => (
-              <button key={id} onClick={() => { setPickedId(id); setDebtBal(n.startDebt); setEmergency(0); setMonth(0); setShocks([]); setStress(50); setHappiness(50); setPhase("allocate"); }} className="popupIn" style={{
+              <button key={id} onClick={() => { setPickedId(id); setDebtBal(n.startDebt); setEmergency(0); setMonth(0); setShocks([]); setStress(50); setHappiness(50); setTimeline([{ month: 0, emergency: 0, debtBal: n.startDebt, stress: 50, happiness: 50 }]); setPhase("allocate"); }} className="popupIn" style={{
                 background: "rgba(255,248,238,0.97)", border: `2px solid ${n.color}`, borderRadius: 6,
                 padding: "24px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
                 boxShadow: `0 14px 40px ${n.color}55`,
@@ -3478,6 +3480,21 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
   // ─── PHASE: SIMULATE ─────────────────────────────────
   if (phase === "simulate") {
     const recentShock = shocks[shocks.length - 1];
+    const isShockMonth = recentShock && recentShock.month === month;
+    const monthly = picked.income;
+    const toNeeds = monthly * alloc.needs / 100;
+    const toDebt = monthly * alloc.debt / 100;
+    const toSave = monthly * alloc.save / 100;
+    const toLife = monthly * alloc.life / 100;
+    const targetEmergency = picked.fixedNeeds * 3;
+    const mood = stress > 80 ? "😩" : stress > 60 ? "😰" : stress > 40 ? "😐" : happiness > 60 ? "😊" : "🙂";
+    const moodLabel = stress > 80 ? "OVERWHELMED" : stress > 60 ? "STRESSED" : stress > 40 ? "COPING" : happiness > 60 ? "AT EASE" : "STEADY";
+    const moodColor = stress > 80 ? C.red : stress > 60 ? C.coral : stress > 40 ? C.gold : C.teal;
+
+    // Sparkline data — emergency fund growth & debt over months
+    const maxFund = Math.max(targetEmergency, ...timeline.map(p => p.emergency), 100);
+    const maxDebt = Math.max(picked.startDebt || 1, ...timeline.map(p => p.debtBal), 100);
+
     return (
       <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
         <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
@@ -3488,38 +3505,176 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
           <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FAST FORWARD</div>
         </div>
 
-        <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #0a1230 50%, ${C.skyDawn} 95%)`, overflow: "hidden" }}>
-          {/* Big month counter ticking */}
-          <div style={{ position: "absolute", top: 30, left: "50%", transform: "translateX(-50%)", textAlign: "center" }}>
-            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>MONTH</div>
-            <div style={{ fontFamily: FONT_D, fontSize: 130, color: C.textCream, fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, textShadow: "0 8px 30px rgba(0,0,0,0.6)" }}>{month}</div>
+        <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #0a1230 35%, #1a1c4a 70%, #4a2c5a 100%)`, overflow: "hidden", padding: "20px 28px", display: "grid", gridTemplateColumns: "1.3fr 1fr", gridTemplateRows: "auto 1fr auto", gap: 16 }}>
+
+          {/* TOP-LEFT — Month counter + progress dots */}
+          <div style={{ gridColumn: "1", gridRow: "1", display: "flex", alignItems: "center", gap: 22 }}>
+            <div>
+              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>MONTH</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 76, color: C.textCream, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.9, textShadow: "0 6px 30px rgba(0,0,0,0.5)" }}>{month}<span style={{ fontSize: 26, color: C.textCreamDim, fontWeight: 700 }}>/12</span></div>
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.28em", fontWeight: 700 }}>YEAR PROGRESS</div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const monthShock = shocks.find(s => s.month === i + 1);
+                  return (
+                    <div key={i} style={{
+                      flex: 1, height: 18, borderRadius: 2,
+                      background: i < month ? (monthShock ? (monthShock.cost > 0 ? C.coral : C.teal) : C.gold) : "rgba(255,255,255,0.08)",
+                      border: i === month - 1 ? `2px solid ${C.gold}` : "none",
+                      transition: "background 0.3s",
+                      position: "relative",
+                    }}>
+                      {monthShock && i < month && <div style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", fontSize: 11 }}>{monthShock.icon}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* Recent shock popup */}
-          {recentShock && recentShock.month === month && (
-            <div key={recentShock.month} className="popupIn" style={{
-              position: "absolute", top: 220, left: "50%", transform: "translateX(-50%)",
-              background: recentShock.cost > 0 ? `${C.coral}` : `${C.teal}`,
-              color: "#fff", padding: "16px 28px", borderRadius: 6,
-              fontFamily: FONT_D, fontSize: 22, fontWeight: 800, letterSpacing: "-0.01em",
-              boxShadow: `0 14px 40px ${recentShock.cost > 0 ? C.coral : C.teal}66`,
-              display: "flex", alignItems: "center", gap: 14,
-            }}>
-              <span style={{ fontSize: 38 }}>{recentShock.icon}</span>
-              <span>{recentShock.name} {recentShock.cost > 0 ? `· -₺${recentShock.cost}` : `· +₺${-recentShock.cost}`}</span>
+          {/* TOP-RIGHT — Neighbour mood card */}
+          <div style={{ gridColumn: "2", gridRow: "1", background: "rgba(255,248,238,0.97)", borderRadius: 6, padding: "12px 18px", display: "flex", alignItems: "center", gap: 14, borderLeft: `4px solid ${moodColor}` }}>
+            <div style={{ width: 56, height: 56, background: picked.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, borderRadius: 8 }}>{picked.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.22em", fontWeight: 800 }}>{picked.name.toUpperCase()}</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 2 }}>
+                <span style={{ fontSize: 28 }}>{mood}</span>
+                <span style={{ fontFamily: FONT_D, fontSize: 16, color: moodColor, fontWeight: 900, letterSpacing: "-0.01em" }}>{moodLabel}</span>
+              </div>
             </div>
-          )}
+          </div>
 
-          {/* Live meters at bottom */}
-          <div style={{ position: "absolute", bottom: 80, left: 30, right: 30, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16 }}>
-            <SimMeter label="EMERGENCY FUND" value={`₺${Math.round(emergency).toLocaleString()}`} pct={Math.min(100, (emergency / (picked.fixedNeeds * 3)) * 100)} color={C.teal} icon="💰" />
-            <SimMeter label="DEBT" value={`₺${Math.round(debtBal).toLocaleString()}`} pct={Math.min(100, (debtBal / Math.max(1, picked.startDebt || 1000)) * 100)} color={C.purple} icon="💳" inverse />
+          {/* CENTRE-LEFT — Animated coin flow into 4 jars */}
+          <div style={{ gridColumn: "1", gridRow: "2", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", position: "relative", minHeight: 0 }}>
+            {/* Income coin source — pulses each month */}
+            <div key={`income-${month}`} style={{
+              background: "rgba(255,248,238,0.97)", padding: "10px 22px", borderRadius: 30,
+              fontFamily: FONT_D, fontSize: 22, fontWeight: 900, color: C.ink,
+              boxShadow: `0 8px 30px ${C.gold}66`, border: `2px solid ${C.gold}`,
+              display: "flex", alignItems: "center", gap: 10,
+              animation: month > 0 ? "pulse 0.5s ease-out" : "none",
+            }}>
+              <span style={{ fontSize: 22 }}>💵</span>
+              <span>INCOME ₺{monthly.toLocaleString()}</span>
+            </div>
+
+            {/* Falling coins SVG between income source and jars */}
+            <svg width="100%" height="60" viewBox="0 0 400 60" preserveAspectRatio="none" style={{ marginTop: 6 }}>
+              {[
+                { x: 60, color: needsMet ? C.teal : C.coral, delay: 0 },
+                { x: 160, color: C.purple, delay: 0.1 },
+                { x: 240, color: C.gold, delay: 0.2 },
+                { x: 340, color: C.rose, delay: 0.3 },
+              ].map((coin, i) => (
+                <g key={`coin-${month}-${i}`}>
+                  <line x1="200" y1="2" x2={coin.x} y2="58" stroke={coin.color} strokeWidth="1.5" strokeDasharray="3 4" opacity="0.5" />
+                  <circle cx={coin.x} cy="58" r="6" fill={coin.color}>
+                    <animateMotion key={month} path={`M 0,-56 L ${coin.x - 200},0`} dur="0.6s" begin={`${coin.delay}s`} fill="freeze" />
+                  </circle>
+                </g>
+              ))}
+            </svg>
+
+            {/* 4 jars side by side */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, width: "100%" }}>
+              <BudgetJar label="NEEDS" amount={toNeeds} color={needsMet ? C.teal : C.coral} icon="🏠" fillPct={Math.min(100, (toNeeds / picked.fixedNeeds) * 100)} sub={`₺${Math.round(toNeeds)}/mo`} />
+              <BudgetJar label="DEBT" amount={toDebt} color={C.purple} icon="💳" fillPct={picked.startDebt > 0 ? Math.max(2, 100 - (debtBal / picked.startDebt) * 100) : 100} sub={`₺${Math.round(debtBal).toLocaleString()} left`} />
+              <BudgetJar label="EMERGENCY" amount={toSave} color={C.gold} icon="💰" fillPct={Math.min(100, (emergency / targetEmergency) * 100)} sub={`₺${Math.round(emergency).toLocaleString()}`} big />
+              <BudgetJar label="LIFE" amount={toLife} color={C.rose} icon="🎉" fillPct={Math.min(100, (toLife / 400) * 100)} sub={`₺${Math.round(toLife)}/mo`} />
+            </div>
+          </div>
+
+          {/* CENTRE-RIGHT — Live sparkline chart */}
+          <div style={{ gridColumn: "2", gridRow: "2", background: "rgba(255,248,238,0.04)", border: `1px solid ${C.borderL}`, borderRadius: 6, padding: "14px 16px", display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 6 }}>● 12-MONTH TRAJECTORY</div>
+            <div style={{ flex: 1, position: "relative", minHeight: 140 }}>
+              <svg viewBox="0 0 240 140" preserveAspectRatio="none" style={{ width: "100%", height: "100%" }}>
+                {/* Y-axis ticks (subtle) */}
+                {[0, 35, 70, 105, 140].map((y, i) => (
+                  <line key={i} x1="0" y1={y} x2="240" y2={y} stroke={C.borderL} strokeWidth="0.4" opacity="0.4" />
+                ))}
+                {/* Target emergency line */}
+                <line x1="0" y1="35" x2="240" y2="35" stroke={C.teal} strokeWidth="0.6" strokeDasharray="2 3" opacity="0.6" />
+                <text x="3" y="33" fill={C.teal} fontFamily={FONT_M} fontSize="6" fontWeight="700" letterSpacing="0.1em">3-MONTH TARGET</text>
+
+                {/* Emergency fund line (teal/gold) */}
+                {timeline.length > 1 && (
+                  <polyline
+                    points={timeline.map(p => `${(p.month / 12) * 240},${140 - (p.emergency / maxFund) * 100}`).join(" ")}
+                    fill="none" stroke={C.gold} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ filter: `drop-shadow(0 0 4px ${C.gold}88)` }}
+                  />
+                )}
+                {/* Debt line (purple) */}
+                {timeline.length > 1 && picked.startDebt > 0 && (
+                  <polyline
+                    points={timeline.map(p => `${(p.month / 12) * 240},${140 - (p.debtBal / maxDebt) * 100}`).join(" ")}
+                    fill="none" stroke={C.purple} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ filter: `drop-shadow(0 0 4px ${C.purple}88)` }}
+                  />
+                )}
+                {/* Stress line (coral, thin) */}
+                {timeline.length > 1 && (
+                  <polyline
+                    points={timeline.map(p => `${(p.month / 12) * 240},${140 - (p.stress / 100) * 100}`).join(" ")}
+                    fill="none" stroke={C.coral} strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 2" opacity="0.7"
+                  />
+                )}
+                {/* Latest data dot */}
+                {timeline.length > 1 && (
+                  <circle cx={(timeline[timeline.length - 1].month / 12) * 240} cy={140 - (timeline[timeline.length - 1].emergency / maxFund) * 100} r="4" fill={C.gold} stroke="#fff" strokeWidth="1">
+                    <animate attributeName="r" values="3;6;3" dur="1.2s" repeatCount="indefinite" />
+                  </circle>
+                )}
+              </svg>
+            </div>
+            {/* Legend */}
+            <div style={{ display: "flex", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_M, fontSize: 9, color: C.textCream, letterSpacing: "0.12em", fontWeight: 700 }}>
+                <span style={{ width: 14, height: 2, background: C.gold, display: "inline-block", borderRadius: 1 }} />EMERGENCY ₺{Math.round(emergency).toLocaleString()}
+              </div>
+              {picked.startDebt > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_M, fontSize: 9, color: C.textCream, letterSpacing: "0.12em", fontWeight: 700 }}>
+                  <span style={{ width: 14, height: 2, background: C.purple, display: "inline-block", borderRadius: 1 }} />DEBT ₺{Math.round(debtBal).toLocaleString()}
+                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_M, fontSize: 9, color: C.textCream, letterSpacing: "0.12em", fontWeight: 700 }}>
+                <span style={{ width: 14, height: 2, background: C.coral, display: "inline-block", borderRadius: 1 }} />STRESS {Math.round(stress)}%
+              </div>
+            </div>
+          </div>
+
+          {/* BOTTOM: 4 live meters spanning full width */}
+          <div style={{ gridColumn: "1 / 3", gridRow: "3", display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
+            <SimMeter label="EMERGENCY FUND" value={`₺${Math.round(emergency).toLocaleString()}`} pct={Math.min(100, (emergency / targetEmergency) * 100)} color={C.teal} icon="💰" />
+            <SimMeter label="DEBT" value={`₺${Math.round(debtBal).toLocaleString()}`} pct={picked.startDebt > 0 ? Math.min(100, (debtBal / picked.startDebt) * 100) : 0} color={C.purple} icon="💳" inverse />
             <SimMeter label="STRESS" value={`${Math.round(stress)}%`} pct={stress} color={C.coral} icon="😰" inverse />
             <SimMeter label="HAPPINESS" value={`${Math.round(happiness)}%`} pct={happiness} color={C.rose} icon="😊" />
           </div>
 
-          {/* City skyline at the very bottom — lights tick on as resilience grows */}
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, overflow: "hidden" }}>
+          {/* Floating shock event card */}
+          {isShockMonth && (
+            <div key={recentShock.month} className="popupIn" style={{
+              position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)",
+              background: recentShock.cost > 0 ? `${C.coral}` : `${C.teal}`,
+              color: "#fff", padding: "14px 26px", borderRadius: 6,
+              fontFamily: FONT_D, fontSize: 20, fontWeight: 800, letterSpacing: "-0.01em",
+              boxShadow: `0 16px 50px ${recentShock.cost > 0 ? C.coral : C.teal}88`,
+              display: "flex", alignItems: "center", gap: 12, zIndex: 5,
+              border: `2px solid #fff`,
+            }}>
+              <span style={{ fontSize: 32 }}>{recentShock.icon}</span>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: FONT_M, letterSpacing: "0.22em", fontWeight: 800, opacity: 0.85 }}>{recentShock.cost > 0 ? "● UNEXPECTED COST" : "● GOOD NEWS"}</div>
+                <div>{recentShock.name} {recentShock.cost > 0 ? `−₺${recentShock.cost}` : `+₺${-recentShock.cost}`}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Skyline at very bottom — lights tick on as resilience grows */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50, overflow: "hidden", opacity: 0.7, pointerEvents: "none" }}>
             <VostonSkyline resilience={Math.max(0, Math.min(100, 30 + (emergency / 100) - (stress / 4)))} thin />
           </div>
         </div>
@@ -3664,6 +3819,36 @@ function ForecastRow({ label, value, sub, color, big }) {
   );
 }
 
+// Visual jar that fills based on percentage
+function BudgetJar({ label, color, icon, fillPct, sub, amount, big }) {
+  return (
+    <div style={{ background: "rgba(255,248,238,0.97)", borderRadius: 6, padding: "10px 12px 14px", borderTop: `3px solid ${color}`, position: "relative", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontFamily: FONT_M, fontSize: 8, color: C.textMuted, letterSpacing: "0.22em", fontWeight: 800 }}>{label}</span>
+      </div>
+      {/* Jar visualisation */}
+      <div style={{ position: "relative", height: big ? 88 : 64, background: "#e8dcb8", borderRadius: "4px 4px 6px 6px", overflow: "hidden", border: `1px solid ${C.borderCream}` }}>
+        {/* Liquid fill */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: `${Math.max(2, Math.min(100, fillPct))}%`,
+          background: `linear-gradient(180deg, ${color}88 0%, ${color} 60%)`,
+          transition: "height 0.6s cubic-bezier(0.34, 1.2, 0.5, 1)",
+        }}>
+          {/* Wave at the top of the liquid */}
+          <div style={{ position: "absolute", top: -3, left: 0, right: 0, height: 6, background: color, opacity: 0.8, borderRadius: "50% 50% 0 0 / 100% 100% 0 0" }} />
+        </div>
+        {/* Fill percentage */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_D, fontSize: big ? 22 : 16, fontWeight: 900, color: fillPct > 50 ? "#fff" : C.ink, textShadow: fillPct > 50 ? "0 1px 2px rgba(0,0,0,0.3)" : "none", letterSpacing: "-0.01em" }}>
+          {Math.round(fillPct)}<span style={{ fontSize: big ? 12 : 10 }}>%</span>
+        </div>
+      </div>
+      <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.06em", fontWeight: 700, marginTop: 6, textAlign: "center" }}>{sub}</div>
+    </div>
+  );
+}
+
 function SimMeter({ label, value, pct, color, icon, inverse }) {
   return (
     <div style={{ background: "rgba(255,248,238,0.95)", borderRadius: 4, padding: "10px 14px", borderTop: `3px solid ${color}` }}>
@@ -3736,13 +3921,332 @@ function VostonSkyline({ resilience, thin }) {
   );
 }
 
+// ─── NEW MINI-GAME: COMPOUND RACE ───────────────────────────
+// Pick a monthly contribution. Watch three strategies race forty years side-by-side.
+function CompoundRace({ state, dispatch, onBack }) {
+  const [phase, setPhase] = useState("setup"); // setup | racing | result
+  const [monthly, setMonthly] = useState(150); // monthly contribution
+  const [year, setYear] = useState(0);
+  const [mattress, setMattress] = useState(500); // cash
+  const [safe, setSafe] = useState(500); // bonds
+  const [growth, setGrowth] = useState(500); // stocks
+  const [history, setHistory] = useState([{ year: 0, mattress: 500, safe: 500, growth: 500 }]);
+  const [events, setEvents] = useState([]);
+  const [running, setRunning] = useState(false);
+
+  // Generate a deterministic-ish event schedule per game
+  const eventSchedule = useMemo(() => {
+    const sched = {};
+    // 2-3 crashes
+    const crashYears = [];
+    for (let i = 0; i < 3; i++) {
+      const y = Math.floor(8 + Math.random() * 30);
+      if (!crashYears.includes(y)) crashYears.push(y);
+    }
+    crashYears.forEach(y => { sched[y] = { type: "crash", growthDelta: -0.22 - Math.random() * 0.12, name: "MARKET CRASH", icon: "📉" }; });
+    // 2 booms
+    const boomYears = [];
+    for (let i = 0; i < 2; i++) {
+      let y;
+      do { y = Math.floor(5 + Math.random() * 32); } while (sched[y]);
+      boomYears.push(y);
+    }
+    boomYears.forEach(y => { sched[y] = { type: "boom", growthDelta: 0.18 + Math.random() * 0.12, name: "BULL RUN", icon: "🚀" }; });
+    // 1 inflation spike (affects mattress)
+    let infY;
+    do { infY = Math.floor(10 + Math.random() * 24); } while (sched[infY]);
+    sched[infY] = { type: "inflation", mattressDelta: -0.05, safeDelta: -0.02, name: "INFLATION SPIKE", icon: "🔥" };
+    return sched;
+  }, [phase === "setup" ? "fresh" : "stable"]); // regenerate only on setup
+
+  // Race tick
+  useEffect(() => {
+    if (!running || phase !== "racing") return;
+    if (year >= 40) { setRunning(false); setPhase("result"); return; }
+    const t = setTimeout(() => {
+      // Returns (real, after inflation)
+      let mattressRet = -0.018; // cash loses to inflation by ~1.8% real
+      let safeRet = 0.03 + (Math.random() - 0.5) * 0.02;
+      let growthRet = 0.075 + (Math.random() - 0.5) * 0.10;
+
+      // Apply event for this year
+      const event = eventSchedule[year + 1];
+      if (event) {
+        if (event.growthDelta) growthRet += event.growthDelta;
+        if (event.mattressDelta) mattressRet += event.mattressDelta;
+        if (event.safeDelta) safeRet += event.safeDelta;
+        setEvents(e => [...e, { ...event, year: year + 1 }]);
+      }
+
+      const annualContrib = monthly * 12;
+      const newMattress = Math.max(0, mattress * (1 + mattressRet) + annualContrib);
+      const newSafe = Math.max(0, safe * (1 + safeRet) + annualContrib);
+      const newGrowth = Math.max(0, growth * (1 + growthRet) + annualContrib);
+
+      setMattress(newMattress);
+      setSafe(newSafe);
+      setGrowth(newGrowth);
+      setHistory(h => [...h, { year: year + 1, mattress: newMattress, safe: newSafe, growth: newGrowth }]);
+      setYear(y => y + 1);
+    }, 240);
+    return () => clearTimeout(t);
+  }, [running, year, phase, mattress, safe, growth, monthly, eventSchedule]);
+
+  const formatMoney = (n) => {
+    if (n >= 1000000) return `₺${(n / 1000000).toFixed(2)}m`;
+    if (n >= 10000) return `₺${Math.round(n / 1000)}k`;
+    return `₺${Math.round(n).toLocaleString()}`;
+  };
+
+  // ─── PHASE: SETUP ─────────────────────────────────
+  if (phase === "setup") {
+    return (
+      <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+        <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.gold, animation: "pulse 1.4s infinite" }} />
+            <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>COMPOUND RACE · SET YOUR STAKE</div>
+          </div>
+          <button onClick={onBack} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid ${C.borderL}`, padding: "6px 14px", fontFamily: FONT_M, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 2 }}>← BACK</button>
+        </div>
+
+        <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #0a1230 40%, #2a1c4a 80%, ${C.skyHorizon} 100%)`, padding: 30, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <div className="popupIn" style={{ background: "rgba(255,248,238,0.98)", padding: "40px 50px", maxWidth: 760, width: "100%", borderRadius: 6, boxShadow: "0 30px 80px rgba(0,0,0,0.6)", border: `2px solid ${C.gold}` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● THE 40-YEAR EXPERIMENT</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 50, color: C.ink, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.95, marginBottom: 12 }}>Compound Race.</div>
+            <div style={{ fontFamily: FONT_H, fontSize: 22, color: C.gold, fontWeight: 600, marginBottom: 22 }}>Same starting pot. Same monthly habit. Three different homes for the money.</div>
+
+            {/* Three strategy preview cards */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24 }}>
+              <StrategyPreview color={C.coral} icon="🛏" name="MATTRESS" desc="Cash under the bed. Safe? Or eaten alive by inflation?" />
+              <StrategyPreview color={C.teal} icon="🛡" name="SAFE" desc="Government bonds. Steady. Just above inflation." />
+              <StrategyPreview color={C.gold} icon="📈" name="GROWTH" desc="Stocks. Wild swings. Crashes hurt. Time forgives." />
+            </div>
+
+            <div style={{ padding: "18px 22px", background: C.surface2, borderRadius: 6, border: `1px solid ${C.borderCream}`, marginBottom: 24 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.text, letterSpacing: "0.22em", fontWeight: 800 }}>SAVE THIS MUCH EACH MONTH</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 34, color: C.coral, fontWeight: 900 }}>₺{monthly}<span style={{ fontSize: 16, color: C.textMuted, fontWeight: 700 }}>/mo</span></div>
+              </div>
+              <input type="range" min="25" max="500" step="25" value={monthly} onChange={(e) => setMonthly(parseInt(e.target.value))} style={{ width: "100%", accentColor: C.coral }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: FONT_M, color: C.textMuted, marginTop: 4 }}>
+                <span>₺25 · symbolic</span><span>₺150 · realistic</span><span>₺300 · committed</span><span>₺500 · serious</span>
+              </div>
+              <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.textMuted, marginTop: 10, lineHeight: 1.4 }}>
+                Starting pot ₺500 · 40 years · same contribution into all three accounts.
+                Across the whole race that's <strong style={{ color: C.ink }}>₺{(monthly * 12 * 40).toLocaleString()}</strong> of your own money going in.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button onClick={onBack} style={{ background: "transparent", color: C.textMuted, border: `1px solid ${C.borderCream}`, padding: "14px 24px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
+              <button onClick={() => {
+                setMattress(500); setSafe(500); setGrowth(500); setYear(0); setEvents([]); setHistory([{ year: 0, mattress: 500, safe: 500, growth: 500 }]);
+                setPhase("racing"); setRunning(true);
+              }} style={{ background: C.gold, color: "#0a0f24", border: "none", padding: "16px 42px", fontFamily: FONT_M, fontSize: 13, fontWeight: 800, letterSpacing: "0.28em", cursor: "pointer", borderRadius: 3, boxShadow: `0 14px 36px ${C.gold}88` }}>
+                START THE RACE 🏁
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── PHASE: RACING ─────────────────────────────────
+  if (phase === "racing" || phase === "result") {
+    const maxVal = Math.max(mattress, safe, growth, 5000); // scale bars to fit
+    const recentEvent = events[events.length - 1];
+    const isEventYear = recentEvent && recentEvent.year === year;
+
+    const lanes = [
+      { id: "mattress", value: mattress, color: C.coral, icon: "🛏", name: "MATTRESS",  desc: "Cash" },
+      { id: "safe",     value: safe,     color: C.teal,  icon: "🛡", name: "SAFE",      desc: "Bonds" },
+      { id: "growth",   value: growth,   color: C.gold,  icon: "📈", name: "GROWTH",    desc: "Stocks" },
+    ];
+    // Find leader for crown
+    const leader = lanes.reduce((a, b) => a.value > b.value ? a : b).id;
+
+    return (
+      <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+        <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: phase === "result" ? C.gold : C.coral, animation: "pulse 1.4s infinite" }} />
+            <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>● {phase === "result" ? "RACE COMPLETE" : "LIVE"} · YEAR {year}/40 · ₺{monthly}/MO</div>
+          </div>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>{phase === "result" ? "FINAL TALLY" : "FAST FORWARD"}</div>
+        </div>
+
+        <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #0a1230 35%, #1a1c4a 70%, #4a2c5a 100%)`, overflow: "hidden", padding: "24px 36px 14px", display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* TOP: Year counter + invested-so-far */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>YEAR</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 68, color: C.textCream, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.9, textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>{year}<span style={{ fontSize: 22, color: C.textCreamDim, fontWeight: 700 }}>/40</span></div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.28em", fontWeight: 700 }}>OUT OF YOUR POCKET</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 28, color: C.textCream, fontWeight: 900, letterSpacing: "-0.01em" }}>₺{(monthly * 12 * year + 500).toLocaleString()}</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.18em", marginTop: 2 }}>₺{monthly}/mo × {year} yrs + ₺500 start</div>
+            </div>
+          </div>
+
+          {/* THE RACE — three lanes growing vertically */}
+          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, minHeight: 0 }}>
+            {lanes.map((lane) => {
+              const pct = Math.min(100, (lane.value / maxVal) * 100);
+              const isLeader = lane.id === leader && year > 5;
+              return (
+                <div key={lane.id} style={{ position: "relative", background: "rgba(255,248,238,0.04)", border: `2px solid ${lane.color}88`, borderRadius: 8, padding: "14px 14px 18px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  {/* Lane header */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, position: "relative", zIndex: 2 }}>
+                    <div style={{ width: 44, height: 44, background: lane.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, borderRadius: 8 }}>{lane.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: FONT_M, fontSize: 10, color: lane.color, letterSpacing: "0.24em", fontWeight: 800 }}>{lane.name}</div>
+                      <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.12em" }}>{lane.desc}</div>
+                    </div>
+                    {isLeader && <div style={{ fontSize: 22, animation: "pulse 1.5s infinite" }}>👑</div>}
+                  </div>
+
+                  {/* The growing column */}
+                  <div style={{ flex: 1, position: "relative", background: "rgba(0,0,0,0.3)", borderRadius: 6, overflow: "hidden", minHeight: 200 }}>
+                    {/* Liquid fill */}
+                    <div style={{
+                      position: "absolute", bottom: 0, left: 0, right: 0,
+                      height: `${pct}%`,
+                      background: `linear-gradient(180deg, ${lane.color}cc 0%, ${lane.color} 60%, ${lane.color}99 100%)`,
+                      transition: "height 0.45s cubic-bezier(0.34, 1.2, 0.5, 1)",
+                    }}>
+                      {/* Wave at top */}
+                      <div style={{ position: "absolute", top: -4, left: 0, right: 0, height: 8, background: lane.color, borderRadius: "50% 50% 0 0 / 100% 100% 0 0", opacity: 0.9 }} />
+                      {/* Subtle horizontal lines = "coin layers" */}
+                      <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(0deg, transparent 0, transparent 6px, rgba(255,255,255,0.08) 6px, rgba(255,255,255,0.08) 7px)` }} />
+                    </div>
+                    {/* Current value over the bar */}
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", zIndex: 2 }}>
+                      <div style={{ fontFamily: FONT_M, fontSize: 9, color: pct > 30 ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.22em", fontWeight: 700 }}>NOW WORTH</div>
+                      <div style={{ fontFamily: FONT_D, fontSize: 32, color: pct > 30 ? "#fff" : C.textCream, fontWeight: 900, letterSpacing: "-0.02em", textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{formatMoney(lane.value)}</div>
+                      {/* Growth multiple vs invested */}
+                      <div style={{ fontFamily: FONT_M, fontSize: 10, color: pct > 30 ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.18em", fontWeight: 700, marginTop: 4 }}>
+                        {year > 0 ? `${(lane.value / (monthly * 12 * year + 500)).toFixed(2)}× input` : "−"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Recent event popup */}
+          {isEventYear && (
+            <div key={`evt-${recentEvent.year}`} className="popupIn" style={{
+              position: "absolute", top: 80, left: "50%", transform: "translateX(-50%)",
+              background: recentEvent.type === "crash" || recentEvent.type === "inflation" ? C.coral : C.teal,
+              color: "#fff", padding: "14px 26px", borderRadius: 6,
+              fontFamily: FONT_D, fontSize: 20, fontWeight: 800, letterSpacing: "-0.01em",
+              boxShadow: `0 16px 50px ${recentEvent.type === "crash" || recentEvent.type === "inflation" ? C.coral : C.teal}88`,
+              display: "flex", alignItems: "center", gap: 12, zIndex: 5,
+              border: `2px solid #fff`,
+            }}>
+              <span style={{ fontSize: 32 }}>{recentEvent.icon}</span>
+              <div>
+                <div style={{ fontSize: 11, fontFamily: FONT_M, letterSpacing: "0.22em", fontWeight: 800, opacity: 0.85 }}>YEAR {recentEvent.year}</div>
+                <div>{recentEvent.name}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RESULT OVERLAY when race ends */}
+        {phase === "result" && (() => {
+          const winner = lanes.reduce((a, b) => a.value > b.value ? a : b);
+          const loser = lanes.reduce((a, b) => a.value < b.value ? a : b);
+          const totalInvested = monthly * 12 * 40 + 500;
+          const winnerGain = winner.value - totalInvested;
+          const winnerVsLoser = winner.value - loser.value;
+          return (
+            <div className="popupIn" style={{
+              position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+              background: "rgba(255,248,238,0.98)", padding: "28px 38px", borderRadius: 10,
+              maxWidth: 720, width: "92%", border: `3px solid ${winner.color}`, zIndex: 10,
+              boxShadow: `0 40px 100px rgba(0,0,0,0.7)`,
+            }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 11, color: winner.color, letterSpacing: "0.32em", fontWeight: 800 }}>● 40 YEARS LATER · WINNER</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 6 }}>
+                <div style={{ fontSize: 48 }}>{winner.icon}</div>
+                <div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 38, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1 }}>{winner.name}</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 30, color: winner.color, fontWeight: 900, letterSpacing: "-0.01em", lineHeight: 1.1 }}>{formatMoney(winner.value)}</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, padding: "14px 18px", background: C.surface2, borderRadius: 4, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.2em", fontWeight: 700 }}>YOU PUT IN</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: C.ink, fontWeight: 900 }}>₺{totalInvested.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.2em", fontWeight: 700 }}>WINNER GAINED</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: winner.color, fontWeight: 900 }}>+{formatMoney(winnerGain)}</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.2em", fontWeight: 700 }}>WINNER vs LOSER</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: C.coral, fontWeight: 900 }}>+{formatMoney(winnerVsLoser)}</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.2em", fontWeight: 700 }}>EVENTS WEATHERED</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: C.ink, fontWeight: 900 }}>{events.length}</div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, padding: "14px 18px", background: `${winner.color}15`, borderLeft: `4px solid ${winner.color}`, borderRadius: 4 }}>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: winner.color, letterSpacing: "0.22em", fontWeight: 800 }}>● THE LESSON</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.ink, fontWeight: 700, lineHeight: 1.45, marginTop: 4 }}>
+                  {winner.id === "growth" ? "Time in the market beats trying to time it. The crashes hurt — and the recovery rewarded patience." :
+                   winner.id === "safe" ? "Bonds did their job — slow, steady, dependable. They beat cash. They lost to stocks over the long run." :
+                   "Cash felt safe — but inflation ate its value. In nominal terms it grew. In real terms it shrank."}
+                </div>
+                <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.textMuted, lineHeight: 1.45, marginTop: 6, fontStyle: "italic" }}>
+                  Run the race again with different events. Note how often growth still wins despite the crashes — and how often it doesn't.
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+                <button onClick={() => { setPhase("setup"); setRunning(false); }} style={{ flex: 1, background: "transparent", color: C.text, border: `1.5px solid ${C.borderCream}`, padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>RACE AGAIN →</button>
+                <button onClick={onBack} style={{ flex: 1, background: C.coral, color: "#fff", border: "none", padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>DONE</button>
+              </div>
+            </div>
+          );
+        })()}
+
+        <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>40 YEARS · ONE HABIT · THREE STRATEGIES</div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// Tiny helper for the setup-screen strategy preview cards
+function StrategyPreview({ color, icon, name, desc }) {
+  return (
+    <div style={{ background: C.surface2, border: `2px solid ${color}`, borderRadius: 4, padding: "12px 12px" }}>
+      <div style={{ fontSize: 22 }}>{icon}</div>
+      <div style={{ fontFamily: FONT_M, fontSize: 10, color, letterSpacing: "0.22em", fontWeight: 800, marginTop: 4 }}>{name}</div>
+      <div style={{ fontFamily: FONT_B, fontSize: 11, color: C.text, lineHeight: 1.4, marginTop: 4 }}>{desc}</div>
+    </div>
+  );
+}
+
 function BankPanel({ state, dispatch }) {
-  // Two mini-games available at the Savings Bank
-  const [mode, setMode] = useState(null); // null | "future" | "budget"
-  // If no mode chosen, show the chooser screen
+  // Three mini-games available at the Savings Bank
+  const [mode, setMode] = useState(null); // null | "future" | "budget" | "race"
   if (mode === null) return <BankModeChooser onPick={setMode} dispatch={dispatch} state={state} />;
   if (mode === "budget") return <BudgetHealthCheck dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
-  // Otherwise fall through to the Future You sim
+  if (mode === "race") return <CompoundRace dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
   return <FutureYouSim dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
 }
 
@@ -3767,50 +4271,69 @@ function BankModeChooser({ onPick, dispatch, state }) {
           <rect x="0" y="640" width="1600" height="160" fill="#04060f" />
         </svg>
 
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, gap: 28 }}>
-          <div style={{ textAlign: "center", maxWidth: 760, background: "rgba(4,6,15,0.7)", padding: "18px 28px", borderRadius: 4, borderTop: `2px solid ${C.gold}55`, borderBottom: `2px solid ${C.gold}55` }}>
-            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● TWO TOOLS · ONE OUTCOME</div>
-            <div style={{ fontFamily: FONT_D, fontSize: 38, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.05 }}>Strong households build a strong country.</div>
-            <div style={{ fontFamily: FONT_H, fontSize: 17, color: C.gold, fontWeight: 500, marginTop: 8 }}>Try both. One plans your own future. One helps a neighbour right now.</div>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, gap: 22 }}>
+          <div style={{ textAlign: "center", maxWidth: 820, background: "rgba(4,6,15,0.7)", padding: "16px 28px", borderRadius: 4, borderTop: `2px solid ${C.gold}55`, borderBottom: `2px solid ${C.gold}55` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● THREE TOOLS · ONE OUTCOME</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 36, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.05 }}>Strong households build a strong country.</div>
+            <div style={{ fontFamily: FONT_H, fontSize: 16, color: C.gold, fontWeight: 500, marginTop: 8 }}>Plan your future. Help a neighbour. Race three strategies.</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22, maxWidth: 1080, width: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, maxWidth: 1280, width: "100%" }}>
             {/* Card 1 — Future You */}
             <button onClick={() => onPick("future")} className="popupIn" style={{
               background: "rgba(255,248,238,0.97)", border: `2px solid ${C.coral}`, borderRadius: 6,
-              padding: "28px 30px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
-              boxShadow: `0 18px 50px ${C.coral}44`,
+              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
+              boxShadow: `0 16px 40px ${C.coral}44`,
             }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-              <div style={{ fontSize: 38 }}>📈</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.coral, letterSpacing: "0.3em", fontWeight: 800, marginTop: 8 }}>● PERSONAL · 30 YEARS</div>
-              <div style={{ fontFamily: FONT_D, fontSize: 30, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Future You</div>
-              <div style={{ fontFamily: FONT_B, fontSize: 13, color: C.text, lineHeight: 1.45, marginTop: 10 }}>
+              <div style={{ fontSize: 34 }}>📈</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● PERSONAL · 30 YEARS</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Future You</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
                 You are 22. Set a savings plan, pick an investment style, then live through 30 years of life events. See where compound, discipline, and luck land you at 52.
               </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>COMPOUND</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>RISK</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>LIFE EVENTS</span>
+              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>COMPOUND</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>RISK</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>LIFE EVENTS</span>
               </div>
             </button>
 
-            {/* Card 2 — Budget Health Check (NEW) */}
+            {/* Card 2 — Budget Health Check */}
             <button onClick={() => onPick("budget")} className="popupIn" style={{
               background: "rgba(255,248,238,0.97)", border: `2px solid ${C.teal}`, borderRadius: 6,
-              padding: "28px 30px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
-              boxShadow: `0 18px 50px ${C.teal}44`, position: "relative",
+              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
+              boxShadow: `0 16px 40px ${C.teal}44`, position: "relative",
             }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-              <div style={{ position: "absolute", top: 12, right: 12, background: C.coral, color: "#fff", padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.2em", fontWeight: 800, borderRadius: 2 }}>NEW</div>
-              <div style={{ fontSize: 38 }}>🏘</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.teal, letterSpacing: "0.3em", fontWeight: 800, marginTop: 8 }}>● A NEIGHBOUR · 12 MONTHS</div>
-              <div style={{ fontFamily: FONT_D, fontSize: 30, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Budget Health Check</div>
-              <div style={{ fontFamily: FONT_B, fontSize: 13, color: C.text, lineHeight: 1.45, marginTop: 10 }}>
+              <div style={{ fontSize: 34 }}>🏘</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● A NEIGHBOUR · 12 MONTHS</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Budget Health Check</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
                 Pick a neighbour from the city. Allocate their monthly income across the four jars. Run a year forward, with shocks. See your plan ripple out into Great Voston's resilience.
               </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>BUDGET RULES</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>EMERGENCY FUND</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "4px 10px", fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>NATIONAL IMPACT</span>
+              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>BUDGET RULES</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>EMERGENCY FUND</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>NATIONAL IMPACT</span>
+              </div>
+            </button>
+
+            {/* Card 3 — Compound Race (NEW) */}
+            <button onClick={() => onPick("race")} className="popupIn" style={{
+              background: "rgba(255,248,238,0.97)", border: `2px solid ${C.gold}`, borderRadius: 6,
+              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
+              boxShadow: `0 16px 40px ${C.gold}44`, position: "relative",
+            }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+              <div style={{ position: "absolute", top: 10, right: 10, background: C.coral, color: "#fff", padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.2em", fontWeight: 800, borderRadius: 2 }}>NEW</div>
+              <div style={{ fontSize: 34 }}>🏁</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● THREE STRATEGIES · 40 YEARS</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Compound Race</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
+                Pick how much you'd save each month. Three strategies race forty years side-by-side: cash under the mattress, safe bonds, and growth. Watch which ends up where.
+              </div>
+              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>COMPOUND</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>INFLATION</span>
+                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>RISK vs RETURN</span>
               </div>
             </button>
           </div>
@@ -6462,7 +6985,7 @@ function IntroScreen({ onStart }) {
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v21 · GREAT VOSTON EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v22 · GREAT VOSTON EDITION</div>
       </div>
 
       {/* Full-bleed cityscape */}
