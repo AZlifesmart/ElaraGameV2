@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   GREAT VOSTON · v22 · Bank of Voston Edition · BoE prototype
+   GREAT VOSTON · v23 · Bank of Voston Edition · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -1734,7 +1734,7 @@ function TreasureMap({ state, dispatch }) {
               <g key={zid}>
                 <path d={`M 70 ${zr.y} Q 250 ${zr.y - 10} 450 ${zr.y} Q 650 ${zr.y + 10} 830 ${zr.y}`} fill="none" stroke="#6a4828" strokeWidth="3" strokeDasharray="3,5" strokeLinecap="round" />
                 <text x="70" y={zr.y - 56} fontFamily={FONT_H} fontSize="22" fill={inThis ? "#cc1d2a" : "#2a1438"} fontWeight="700">{tierLabel.toLowerCase()}</text>
-                <text x="70" y={zr.y - 38} fontFamily={FONT_H} fontSize="14" fill="#6a4828" fontStyle="italic">{zr.note}</text>
+                <text x="70" y={zr.y - 38} fontFamily={FONT_H} fontSize="12" fill="#6a4828" fontStyle="italic">{zr.note}</text>
                 {inThis && <text x="225" y={zr.y - 56} fontFamily={FONT_H} fontSize="16" fill="#cc1d2a">← you're here</text>}
               </g>
             );
@@ -1743,9 +1743,9 @@ function TreasureMap({ state, dispatch }) {
           {/* Hillside connecting line */}
           <g>
             <path d="M 780 170 L 770 200 L 780 230 L 770 260 L 780 290 L 770 320" fill="none" stroke="#6a4828" strokeWidth="2" />
-            <text x="800" y="245" fontFamily={FONT_H} fontSize="13" fill="#6a4828" fontStyle="italic">hill path</text>
+            <text x="800" y="245" fontFamily={FONT_H} fontSize="12" fill="#6a4828" fontStyle="italic">hill path</text>
             <path d="M 130 350 L 120 380 L 130 410 L 120 440 L 130 470 L 120 500" fill="none" stroke="#6a4828" strokeWidth="2" />
-            <text x="60" y="425" fontFamily={FONT_H} fontSize="13" fill="#6a4828" fontStyle="italic">hill path</text>
+            <text x="60" y="425" fontFamily={FONT_H} fontSize="12" fill="#6a4828" fontStyle="italic">hill path</text>
           </g>
 
           {/* Landmarks — assign each building to a row based on x */}
@@ -2191,7 +2191,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v22</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v23</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -2498,44 +2498,44 @@ function ActBriefing({ state, dispatch }) {
 function ActOne({ state, dispatch }) {
   const [hovered, setHovered] = useState(null);
   const options = [
-    { id: "cut-hard", title: "CUT HARD", subtitle: "to 1.0%", rate: 1.0, color: C.teal,
+    { id: "cut-hard", title: "CUT HARD", subtitle: "to 1.0%", rate: 1.0, color: C.teal, icon: "🕊",
       line: "Slash rates. Stimulate growth. Pray on inflation.",
-      reaction: "DISASTER", impact: "Inflation: spirals to ~6.5% | Borrowers cheer | Pension holders crushed",
-      good: false, tag: "POPULIST · INFLATIONARY" },
-    { id: "cut", title: "CUT", subtitle: "to 2.5%", rate: 2.5, color: C.blue,
+      reaction: "DISASTER", impactChips: [{ k: "Inflation", v: "↑↑ ~6.5%", bad: true }, { k: "Borrowers", v: "Cheer", bad: false }, { k: "Pensions", v: "Crushed", bad: true }],
+      good: false, tag: "POPULIST" },
+    { id: "cut", title: "CUT", subtitle: "to 2.5%", rate: 2.5, color: C.blue, icon: "🌿",
       line: "Ease cautiously. Show we care about growth too.",
-      reaction: "MIXED", impact: "Inflation: drifts up | Mortgages: ↓₺60/mo | Markets: cautious",
-      good: null, tag: "DOVISH · GROWTH-FOCUSED" },
-    { id: "hold", title: "HOLD", subtitle: "at 3.0%", rate: 3.0, color: C.gold,
+      reaction: "MIXED", impactChips: [{ k: "Inflation", v: "Drifts up", bad: true }, { k: "Mortgages", v: "−₺60/mo", bad: false }, { k: "Markets", v: "Cautious", bad: null }],
+      good: null, tag: "DOVISH" },
+    { id: "hold", title: "HOLD", subtitle: "at 3.0%", rate: 3.0, color: C.gold, icon: "⚖",
       line: "Wait. Watch. Don't shock the patient.",
-      reaction: "CALM", impact: "Inflation: holds at ~4% | Steady markets | 'Indecisive' critics",
-      good: null, tag: "WAIT-AND-SEE · CAUTIOUS" },
-    { id: "raise", title: "RAISE", subtitle: "to 4.5%", rate: 4.5, color: C.coral,
+      reaction: "CALM", impactChips: [{ k: "Inflation", v: "~4% steady", bad: null }, { k: "Markets", v: "Steady", bad: false }, { k: "Critics", v: "'Indecisive'", bad: true }],
+      good: null, tag: "WAIT-AND-SEE" },
+    { id: "raise", title: "RAISE", subtitle: "to 4.5%", rate: 4.5, color: C.coral, icon: "🦅",
       line: "Tighten. The job is price stability. Do the job.",
-      reaction: "TOUGH", impact: "Inflation: ↓ ~3.1% | Mortgages: +₺240/mo | Unemp: +0.8pp",
-      good: true, tag: "HAWKISH · DISCIPLINED" },
-    { id: "raise-hard", title: "RAISE HARD", subtitle: "to 6.0%", rate: 6.0, color: C.red,
+      reaction: "TOUGH", impactChips: [{ k: "Inflation", v: "↓ ~3.1%", bad: false }, { k: "Mortgages", v: "+₺240/mo", bad: true }, { k: "Unemp.", v: "+0.8pp", bad: true }],
+      good: true, tag: "HAWKISH" },
+    { id: "raise-hard", title: "RAISE HARD", subtitle: "to 6.0%", rate: 6.0, color: C.red, icon: "⚡",
       line: "Crush inflation in one blow. Volcker move.",
-      reaction: "DISASTER", impact: "Inflation: ↓↓ but recession | Mortgages: +₺540/mo | Mass distress",
-      good: false, tag: "SHOCK · RECESSIONARY" },
+      reaction: "DISASTER", impactChips: [{ k: "Inflation", v: "↓↓ recession", bad: true }, { k: "Mortgages", v: "+₺540/mo", bad: true }, { k: "Distress", v: "Mass", bad: true }],
+      good: false, tag: "SHOCK" },
   ];
 
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "20px 50px 12px", display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+      <div style={{ padding: "22px 50px 14px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", borderBottom: `1px solid rgba(245,184,46,0.12)` }}>
         <div>
-          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>DECISION 1 · THE RATE</div>
-          <div style={{ fontFamily: FONT_D, fontSize: 42, color: C.surface, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 4 }}>Set the policy rate.</div>
-          <div style={{ fontFamily: FONT_H, fontSize: 18, color: C.coral, fontWeight: 600, marginTop: 4 }}>"Every quarter-point ripples through ten million lives."</div>
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● DECISION 1 OF 4 · THE RATE</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 46, color: C.surface, fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1, marginTop: 6 }}>Set the policy rate.</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.coral, fontWeight: 600, fontStyle: "italic", marginTop: 8, letterSpacing: "-0.005em" }}>"Every quarter-point ripples through ten million lives."</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>HOVER FOR PROJECTION</div>
-          <div style={{ fontFamily: FONT_D, fontSize: 13, color: C.gold, letterSpacing: "-0.01em", marginTop: 4 }}>{hovered ? `Showing if you ${options.find(o => o.id === hovered)?.title.toLowerCase()}` : "Showing current state"}</div>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.24em", fontWeight: 700 }}>HOVER TO PROJECT</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 14, color: hovered ? C.gold : C.textCreamDim, fontWeight: 700, letterSpacing: "-0.01em", marginTop: 4 }}>{hovered ? `→ If you ${options.find(o => o.id === hovered)?.title.toLowerCase()}` : "Showing current state"}</div>
         </div>
       </div>
 
       {/* MAIN ROW: rate options (left) + transmission network (right) */}
-      <div style={{ flex: 1, display: "flex", gap: 14, padding: "10px 30px 20px", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", gap: 16, padding: "16px 30px 16px", minHeight: 0 }}>
         {/* Rate option cards */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
           {options.map((o) => {
@@ -2553,29 +2553,69 @@ function ActOne({ state, dispatch }) {
                    className="popupIn"
                    style={{
                      flex: 1, position: "relative", overflow: "hidden",
-                     background: isHover ? o.color : "rgba(255,248,238,0.04)",
-                     border: `2px solid ${isHover ? o.color : "rgba(245,184,46,0.3)"}`,
-                     borderRadius: 4, padding: "12px 18px", cursor: "pointer", transition: "all 0.2s",
-                     transform: isHover ? "translateX(8px)" : "translateX(0)",
-                     boxShadow: isHover ? `0 12px 40px ${o.color}66` : "none",
+                     background: isHover ? `linear-gradient(90deg, ${o.color} 0%, ${o.color}cc 100%)` : "rgba(8,12,30,0.5)",
+                     border: `2px solid ${isHover ? o.color : `${o.color}55`}`,
+                     borderLeft: `6px solid ${o.color}`,
+                     borderRadius: 4, padding: "14px 22px", cursor: "pointer", transition: "all 0.2s",
+                     transform: isHover ? "translateX(10px)" : "translateX(0)",
+                     boxShadow: isHover ? `0 14px 50px ${o.color}88, inset 0 0 0 1px rgba(255,255,255,0.2)` : `0 4px 16px rgba(0,0,0,0.4)`,
                      display: "flex", alignItems: "center", gap: 22,
                    }}>
-                <div style={{ position: "absolute", right: -10, top: -10, fontFamily: FONT_D, fontSize: 80, fontWeight: 900, color: isHover ? "#fff" : o.color, opacity: isHover ? 0.2 : 0.10, lineHeight: 1, pointerEvents: "none" }}>{o.subtitle.replace(/[^0-9.]/g, "").substring(0, 3)}</div>
+                {/* Big background rate number — much more dramatic */}
+                <div style={{ position: "absolute", right: -12, bottom: -28, fontFamily: FONT_D, fontSize: 140, fontWeight: 900, color: "#fff", opacity: isHover ? 0.18 : 0.08, lineHeight: 1, pointerEvents: "none", letterSpacing: "-0.06em" }}>{o.rate.toFixed(1)}</div>
 
-                <div style={{ minWidth: 200, position: "relative" }}>
-                  <div style={{ fontFamily: FONT_M, fontSize: 8, color: isHover ? "rgba(255,255,255,0.85)" : o.color, letterSpacing: "0.22em", fontWeight: 800 }}>OPTION</div>
-                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: isHover ? "#fff" : C.surface, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 2 }}>{o.title}</div>
-                  <div style={{ fontFamily: FONT_D, fontSize: 14, color: isHover ? "rgba(255,255,255,0.9)" : o.color, fontWeight: 700, marginTop: 2 }}>{o.subtitle}</div>
+                {/* LEFT: icon + label */}
+                <div style={{ minWidth: 200, position: "relative", display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: 8,
+                    background: isHover ? "rgba(255,255,255,0.18)" : `${o.color}22`,
+                    border: `2px solid ${isHover ? "rgba(255,255,255,0.5)" : o.color}`,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26,
+                    flexShrink: 0,
+                  }}>{o.icon}</div>
+                  <div>
+                    <div style={{ fontFamily: FONT_M, fontSize: 8.5, color: isHover ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.24em", fontWeight: 800 }}>OPTION</div>
+                    <div style={{ fontFamily: FONT_D, fontSize: 24, color: isHover ? "#fff" : C.surface, fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1, marginTop: 2 }}>{o.title}</div>
+                    <div style={{ fontFamily: FONT_D, fontSize: 14, color: isHover ? "rgba(255,255,255,0.9)" : o.color, fontWeight: 800, marginTop: 2 }}>{o.subtitle}</div>
+                  </div>
                 </div>
 
-                <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
-                  <div style={{ fontFamily: FONT_H, fontSize: 15, color: isHover ? "#fff" : C.textCream, fontWeight: 500, lineHeight: 1.3, fontStyle: "italic" }}>"{o.line}"</div>
-                  <div style={{ fontFamily: FONT_M, fontSize: 8, color: isHover ? "rgba(255,255,255,0.8)" : C.textCreamDim, letterSpacing: "0.15em", marginTop: 4, fontWeight: 600 }}>{o.impact}</div>
+                {/* MIDDLE: quote + impact chips */}
+                <div style={{ flex: 1, position: "relative", minWidth: 0, paddingRight: 90 }}>
+                  <div style={{ fontFamily: FONT_D, fontSize: 14.5, color: isHover ? "#fff" : C.textCream, fontWeight: 600, lineHeight: 1.35, fontStyle: "italic", letterSpacing: "-0.005em" }}>"{o.line}"</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                    {o.impactChips.map((chip, i) => {
+                      const tone = chip.bad === true ? C.coral : chip.bad === false ? C.teal : null;
+                      return (
+                        <span key={i} style={{
+                          fontFamily: FONT_M, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+                          padding: "3px 8px", borderRadius: 2,
+                          background: isHover ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.06)",
+                          color: isHover ? "#fff" : C.textCream,
+                          borderLeft: tone ? `2px solid ${tone}` : `2px solid rgba(255,255,255,0.2)`,
+                        }}>
+                          <span style={{ opacity: 0.7 }}>{chip.k}: </span>
+                          <strong style={{ fontWeight: 800 }}>{chip.v}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div style={{ padding: "3px 8px", background: isHover ? "rgba(0,0,0,0.25)" : `${o.color}33`, borderRadius: 2, position: "relative", flexShrink: 0 }}>
-                  <span style={{ fontFamily: FONT_M, fontSize: 8, color: isHover ? "#fff" : o.color, letterSpacing: "0.22em", fontWeight: 800 }}>{o.tag.split(" · ")[0]}</span>
+                {/* RIGHT: tag pill */}
+                <div style={{
+                  padding: "5px 12px",
+                  background: isHover ? "rgba(0,0,0,0.3)" : `${o.color}22`,
+                  borderRadius: 2, position: "relative", flexShrink: 0,
+                  border: `1px solid ${isHover ? "rgba(255,255,255,0.3)" : `${o.color}55`}`,
+                }}>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: isHover ? "#fff" : o.color, letterSpacing: "0.26em", fontWeight: 800 }}>{o.tag}</div>
                 </div>
+
+                {/* Hover arrow */}
+                {isHover && (
+                  <div style={{ position: "absolute", right: 18, top: 14, fontFamily: FONT_M, fontSize: 11, color: "#fff", letterSpacing: "0.22em", fontWeight: 800, animation: "pulse 1.4s infinite" }}>COMMIT →</div>
+                )}
               </div>
             );
           })}
@@ -2585,8 +2625,8 @@ function ActOne({ state, dispatch }) {
         <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           <MiniTransmission state={state} hoveredRate={hovered ? options.find(o => o.id === hovered)?.rate : undefined} label={hovered ? "PREVIEW" : "CURRENT"} />
           {hovered && (
-            <div className="popupIn" style={{ background: "rgba(8,12,30,0.7)", border: `1px solid rgba(245,184,46,0.18)`, padding: "12px 14px", borderRadius: 3 }}>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 6 }}>◆ DIAGNOSIS AT THIS RATE</div>
+            <div className="popupIn" style={{ background: "rgba(8,12,30,0.85)", border: `2px solid ${options.find(o => o.id === hovered).color}66`, borderTop: `4px solid ${options.find(o => o.id === hovered).color}`, padding: "14px 16px", borderRadius: 4 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: options.find(o => o.id === hovered).color, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 8 }}>◆ DIAGNOSIS AT THIS RATE</div>
               {(() => {
                 const o = options.find(opt => opt.id === hovered);
                 const proj = computeVitals(state, o.rate);
@@ -2594,10 +2634,10 @@ function ActOne({ state, dispatch }) {
                 const dGdp  = proj.gdp - computeVitals(state).gdp;
                 const dUnemp= proj.unemp - computeVitals(state).unemp;
                 return (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>INFL</div><div style={{ fontFamily: FONT_D, fontSize: 18, color: proj.inflation > 3 ? C.coral : C.teal, fontWeight: 800 }}>{proj.inflation.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dInfl < 0 ? C.teal : C.coral, fontWeight: 700 }}>{dInfl > 0 ? "▲" : "▼"} {Math.abs(dInfl).toFixed(1)}</div></div>
-                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>GDP</div><div style={{ fontFamily: FONT_D, fontSize: 18, color: proj.gdp < 1 ? C.coral : C.teal, fontWeight: 800 }}>{proj.gdp.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dGdp > 0 ? C.teal : C.coral, fontWeight: 700 }}>{dGdp > 0 ? "▲" : "▼"} {Math.abs(dGdp).toFixed(1)}</div></div>
-                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>UNEMP</div><div style={{ fontFamily: FONT_D, fontSize: 18, color: proj.unemp > 5.5 ? C.coral : C.teal, fontWeight: 800 }}>{proj.unemp.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dUnemp < 0 ? C.teal : C.coral, fontWeight: 700 }}>{dUnemp > 0 ? "▲" : "▼"} {Math.abs(dUnemp).toFixed(1)}</div></div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>INFL</div><div style={{ fontFamily: FONT_D, fontSize: 22, color: proj.inflation > 3 ? C.coral : C.teal, fontWeight: 900, letterSpacing: "-0.01em" }}>{proj.inflation.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dInfl < 0 ? C.teal : C.coral, fontWeight: 800 }}>{dInfl > 0 ? "▲" : "▼"} {Math.abs(dInfl).toFixed(1)}</div></div>
+                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>GDP</div><div style={{ fontFamily: FONT_D, fontSize: 22, color: proj.gdp < 1 ? C.coral : C.teal, fontWeight: 900, letterSpacing: "-0.01em" }}>{proj.gdp.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dGdp > 0 ? C.teal : C.coral, fontWeight: 800 }}>{dGdp > 0 ? "▲" : "▼"} {Math.abs(dGdp).toFixed(1)}</div></div>
+                    <div><div style={{ fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.18em", fontFamily: FONT_M, fontWeight: 700 }}>UNEMP</div><div style={{ fontFamily: FONT_D, fontSize: 22, color: proj.unemp > 5.5 ? C.coral : C.teal, fontWeight: 900, letterSpacing: "-0.01em" }}>{proj.unemp.toFixed(1)}%</div><div style={{ fontFamily: FONT_M, fontSize: 9, color: dUnemp < 0 ? C.teal : C.coral, fontWeight: 800 }}>{dUnemp > 0 ? "▲" : "▼"} {Math.abs(dUnemp).toFixed(1)}</div></div>
                   </div>
                 );
               })()}
@@ -2606,8 +2646,8 @@ function ActOne({ state, dispatch }) {
         </div>
       </div>
 
-      <div style={{ padding: "0 50px 14px", textAlign: "center" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.28em" }}>HOVER TO PROJECT · CLICK TO COMMIT</div>
+      <div style={{ padding: "0 50px 14px", textAlign: "center", borderTop: `1px solid rgba(245,184,46,0.12)`, paddingTop: 12 }}>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em", fontWeight: 700 }}>● HOVER A CARD TO SEE THE PROJECTION ● CLICK TO COMMIT</div>
       </div>
     </div>
   );
@@ -2722,7 +2762,7 @@ function ActHub({ state, dispatch }) {
       <div style={{ padding: "24px 50px 12px" }}>
         <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>POLICY HUB · DO MORE OR PRESS ON</div>
         <div style={{ fontFamily: FONT_D, fontSize: 48, color: C.surface, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 4 }}>What else do you reach for?</div>
-        <div style={{ fontFamily: FONT_H, fontSize: 20, color: isBad ? C.coral : C.gold, fontWeight: 600, marginTop: 6 }}>{isBad ? "The country is hurting. You have more tools — or face the press now." : "Pile on with more tools, or take the rate decision to the press."}</div>
+        <div style={{ fontFamily: FONT_D, fontSize: 18, color: isBad ? C.coral : C.gold, fontWeight: 600, fontStyle: "italic", marginTop: 8, letterSpacing: "-0.005em" }}>{isBad ? "The country is hurting. You have more tools — or face the press now." : "Pile on with more tools, or take the rate decision to the press."}</div>
       </div>
 
       <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, padding: "12px 40px 22px", minHeight: 0 }}>
@@ -2790,35 +2830,42 @@ function SubActionScreen({ title, subtitle, choices, keyName, dispatch, state, m
   const [decided, setDecided] = useState(null);
   return (
     <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "24px 50px 12px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>{title}</div>
-        <div style={{ fontFamily: FONT_D, fontSize: 44, color: C.surface, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 4 }}>{subtitle}</div>
+      <div style={{ padding: "22px 50px 14px", borderBottom: `1px solid rgba(245,184,46,0.12)` }}>
+        <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● {title}</div>
+        <div style={{ fontFamily: FONT_D, fontSize: 44, color: C.surface, fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1, marginTop: 6 }}>{subtitle}</div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, padding: "12px 50px 20px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10, padding: "16px 50px 16px" }}>
         {choices.map((c) => {
           const isPicked = decided === c.id;
           return (
-            <div key={c.id} onClick={() => setDecided(c.id)} style={{
-              position: "relative", overflow: "hidden",
-              background: isPicked ? c.color : "rgba(255,248,238,0.04)",
-              border: `2px solid ${isPicked ? c.color : "rgba(245,184,46,0.3)"}`,
-              borderRadius: 3, padding: "14px 22px", cursor: "pointer", transition: "all 0.15s",
-              display: "flex", alignItems: "center", gap: 24,
+            <div key={c.id} onClick={() => setDecided(c.id)} className="popupIn" style={{
+              position: "relative", overflow: "hidden", flex: 1,
+              background: isPicked ? `linear-gradient(90deg, ${c.color} 0%, ${c.color}cc 100%)` : "rgba(8,12,30,0.5)",
+              border: `2px solid ${isPicked ? c.color : `${c.color}55`}`,
+              borderLeft: `6px solid ${c.color}`,
+              borderRadius: 4, padding: "16px 24px", cursor: "pointer", transition: "all 0.2s",
+              transform: isPicked ? "translateX(10px)" : "translateX(0)",
+              boxShadow: isPicked ? `0 14px 50px ${c.color}88, inset 0 0 0 1px rgba(255,255,255,0.2)` : `0 4px 16px rgba(0,0,0,0.4)`,
+              display: "flex", alignItems: "center", gap: 26,
             }}>
-              <div style={{ minWidth: 280 }}>
-                <div style={{ fontFamily: FONT_D, fontSize: 22, color: isPicked ? "#fff" : C.surface, fontWeight: 900, letterSpacing: "-0.01em" }}>{c.label}</div>
+              <div style={{ minWidth: 260, position: "relative" }}>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: isPicked ? "rgba(255,255,255,0.85)" : c.color, letterSpacing: "0.26em", fontWeight: 800 }}>OPTION</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 24, color: isPicked ? "#fff" : C.surface, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 4 }}>{c.label}</div>
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: FONT_H, fontSize: 16, color: isPicked ? "#fff" : C.textCream, fontStyle: "italic", lineHeight: 1.3 }}>"{c.line}"</div>
-                <div style={{ fontFamily: FONT_M, fontSize: 9, color: isPicked ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.18em", marginTop: 4, fontWeight: 600 }}>{c.impact}</div>
+              <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
+                <div style={{ fontFamily: FONT_D, fontSize: 16, color: isPicked ? "#fff" : C.textCream, fontStyle: "italic", fontWeight: 600, lineHeight: 1.35, letterSpacing: "-0.005em" }}>"{c.line}"</div>
+                <div style={{ fontFamily: FONT_M, fontSize: 9.5, color: isPicked ? "rgba(255,255,255,0.9)" : C.textCreamDim, letterSpacing: "0.14em", marginTop: 8, fontWeight: 700 }}>{c.impact}</div>
               </div>
+              {isPicked && (
+                <div style={{ fontFamily: FONT_M, fontSize: 11, color: "#fff", letterSpacing: "0.22em", fontWeight: 800, flexShrink: 0, animation: "pulse 1.4s infinite" }}>✓ SELECTED</div>
+              )}
             </div>
           );
         })}
       </div>
 
-      <div style={{ padding: "0 50px 26px", display: "flex", justifyContent: "space-between" }}>
+      <div style={{ padding: "12px 50px 26px", display: "flex", justifyContent: "space-between", borderTop: `1px solid rgba(245,184,46,0.12)` }}>
         <button onClick={() => dispatch({ type: "MEETING_PHASE", phase: "hub" })} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid rgba(255,255,255,0.2)`, padding: "12px 22px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 2 }}>← BACK TO HUB</button>
         <button disabled={!decided} onClick={() => {
           const c = choices.find(x => x.id === decided);
@@ -2834,6 +2881,7 @@ function SubActionScreen({ title, subtitle, choices, keyName, dispatch, state, m
           background: decided ? C.coral : "rgba(255,255,255,0.08)", color: decided ? "#fff" : "rgba(255,255,255,0.3)",
           border: "none", padding: "14px 34px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em",
           cursor: decided ? "pointer" : "not-allowed", borderRadius: 2,
+          boxShadow: decided ? `0 12px 30px ${C.coral}88` : "none",
         }}>LOCK IN → BACK TO HUB</button>
       </div>
     </div>
@@ -2854,7 +2902,7 @@ function ActOutcome({ state, dispatch }) {
       <div style={{ textAlign: "center", marginBottom: 18 }}>
         <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>YOUR POLICY · LOCKED</div>
         <div style={{ fontFamily: FONT_D, fontSize: 48, color: C.surface, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1, marginTop: 6 }}>The committee has voted.</div>
-        <div style={{ fontFamily: FONT_H, fontSize: 20, color: C.gold, fontWeight: 600, marginTop: 6 }}>Watch the transmission. Now the world finds out.</div>
+        <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.gold, fontWeight: 600, fontStyle: "italic", marginTop: 8, letterSpacing: "-0.005em" }}>Watch the transmission. Now the world finds out.</div>
       </div>
 
       {/* Two-column layout: policy stack (left) + transmission network (right) */}
@@ -4660,7 +4708,7 @@ function FutureYouSim({ state, dispatch, onBack }) {
             <div className="popupIn" style={{ background: "rgba(255,248,238,0.98)", padding: "40px 50px", maxWidth: 880, width: "90%", borderRadius: 4, boxShadow: `0 40px 120px ${C.coral}55, 0 0 0 8px rgba(218,27,92,0.12)`, borderTop: `6px solid ${C.coral}`, position: "relative" }}>
               <div style={{ position: "absolute", top: -14, left: 40, background: C.coral, color: "#fff", padding: "5px 14px", borderRadius: 2, fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.32em", fontWeight: 800, boxShadow: `0 4px 14px ${C.coral}88` }}>AGE {currentEvent.age} · LIFE EVENT</div>
               <div style={{ fontFamily: FONT_D, fontSize: 44, color: C.ink, fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1, marginTop: 8, marginBottom: 14 }}>{currentEvent.title}</div>
-              <div style={{ fontFamily: FONT_H, fontSize: 19, color: C.text, lineHeight: 1.45, marginBottom: 24, fontStyle: "italic", fontWeight: 500 }}>{currentEvent.body}</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.text, lineHeight: 1.5, marginBottom: 24, fontStyle: "italic", fontWeight: 600 }}>{currentEvent.body}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {currentEvent.choices.map((c, i) => (
                   <button key={c.id} onClick={() => applyChoice(currentEvent, c)} style={{
@@ -4710,7 +4758,7 @@ function FutureYouSim({ state, dispatch, onBack }) {
                     <div style={{ fontFamily: FONT_D, fontSize: 14, color: C.gold, fontWeight: 800, minWidth: 40 }}>AGE {e.age}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: FONT_D, fontSize: 13, color: C.ink, fontWeight: 700 }}>{e.choice}</div>
-                      <div style={{ fontFamily: FONT_H, fontSize: 14, color: C.textMuted, fontStyle: "italic" }}>{e.lesson}</div>
+                      <div style={{ fontFamily: FONT_D, fontSize: 13, color: C.textMuted, fontStyle: "italic", fontWeight: 500 }}>{e.lesson}</div>
                     </div>
                   </div>
                 ))}
@@ -5908,7 +5956,7 @@ function RecoveryStatement({ state, dispatch }) {
                    onMouseOut={(e) => { e.currentTarget.style.background = "rgba(255,248,238,0.04)"; }}>
                   <div style={{ fontFamily: FONT_M, fontSize: 9, color: s.color, letterSpacing: "0.28em", fontWeight: 800 }}>STATEMENT</div>
                   <div style={{ fontFamily: FONT_D, fontSize: 22, color: C.surface, fontWeight: 900, marginTop: 6, lineHeight: 1.1 }}>{s.label}</div>
-                  <div style={{ fontFamily: FONT_H, fontSize: 15, color: C.textCream, fontStyle: "italic", marginTop: 10, lineHeight: 1.3 }}>"{s.preview}"</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 14, color: C.textCream, fontStyle: "italic", fontWeight: 600, marginTop: 10, lineHeight: 1.4 }}>"{s.preview}"</div>
                 </div>
               ))}
             </div>
@@ -6043,7 +6091,7 @@ function NewsroomPress({ state, dispatch }) {
           <div style={{ borderBottom: `3px double ${C.ink}`, paddingBottom: 12, marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <div>
               <div style={{ fontFamily: FONT_D, fontSize: 38, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1 }}>{cur.paper}</div>
-              <div style={{ fontFamily: FONT_H, fontSize: 14, color: C.textMuted, fontWeight: 500, marginTop: 2, fontStyle: "italic" }}>{cur.mast}</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 12, color: C.textMuted, fontWeight: 500, marginTop: 2, fontStyle: "italic" }}>{cur.mast}</div>
             </div>
             <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.22em", textAlign: "right" }}>EVENING EDITION<br/>TUESDAY · LATE</div>
           </div>
@@ -6985,7 +7033,7 @@ function IntroScreen({ onStart }) {
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v22 · GREAT VOSTON EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v23 · GREAT VOSTON EDITION</div>
       </div>
 
       {/* Full-bleed cityscape */}
@@ -7476,7 +7524,7 @@ export default function App() {
                 <span style={{ fontFamily: FONT_M, fontSize: 11, color: C.textCream, letterSpacing: "0.18em", fontWeight: 700 }}>TALK / ENTER</span>
               </div>
             </div>
-            <div style={{ fontFamily: FONT_H, fontSize: 17, color: C.gold, fontStyle: "italic", fontWeight: 500, lineHeight: 1.4 }}>
+            <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.gold, fontStyle: "italic", fontWeight: 600, lineHeight: 1.45 }}>
               Tomorrow you walk into the Reserve. <br/>
               Tonight, listen to who will feel your decisions.
             </div>
