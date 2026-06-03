@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   GREAT VOSTON · v23 · Bank of Voston Edition · BoE prototype
+   GREAT VOSTON · v24 · Bank of Voston Edition · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -1647,6 +1647,12 @@ function StreetScene({ state, dispatch, nearestThing }) {
         <PlaceAtCurve key={p.id} p={p} isActive={nearestThing.kind === "place" && nearestThing.id === p.id} isQuest={arrowTargetPlace?.id === p.id} locked={p.id === "reserve" && state.dayPhase !== "work"} />
       ))}
 
+      {/* DECORATIVE BACKGROUND CITIZENS — silent, no labels, no interaction.
+          Spread across the world to make the city feel inhabited on camera. */}
+      {BG_CITIZENS.map((c, i) => (
+        <BackgroundCitizen key={i} c={c} groundY={groundY} />
+      ))}
+
       {/* All NPCs on the curve */}
       {NPCS.map((n) => (
         <NpcSpriteAtCurve key={n.id} npc={n} isActive={nearestThing.kind === "npc" && nearestThing.id === n.id} isQuest={arrowTargetNpc?.id === n.id} />
@@ -1659,6 +1665,93 @@ function StreetScene({ state, dispatch, nearestThing }) {
 }
 
 // Buildings sit on the ground curve
+// Decorative background citizens — spread across the world, no interaction, no labels.
+// They make the city feel inhabited especially on camera. Sized smaller than NPCs.
+const BG_CITIZENS = [
+  // Riverside area
+  { x: 450,  pose: "walk-right", body: "#9C72D4", hair: "#3a2418", phaseOff: 0,    speed: 6 },
+  { x: 780,  pose: "stand",      body: "#06B5A0", hair: "#1a0c08", phaseOff: 1.2,  speed: 0 },
+  { x: 1100, pose: "walk-left",  body: "#3D7BD9", hair: "#5a3a20", phaseOff: 2.4,  speed: 5 },
+  // City centre
+  { x: 1700, pose: "stand",      body: "#DA1B5C", hair: "#e8ddc8", phaseOff: 0.6,  speed: 0 },
+  { x: 2050, pose: "walk-right", body: "#F5B82E", hair: "#1a0c08", phaseOff: 1.8,  speed: 6 },
+  { x: 2400, pose: "sit",        body: "#9C72D4", hair: "#3a2418", phaseOff: 0,    speed: 0 },
+  { x: 2750, pose: "walk-left",  body: "#06B5A0", hair: "#2a1810", phaseOff: 3.2,  speed: 5 },
+  // Financial district
+  { x: 3300, pose: "stand",      body: "#0a0f24", hair: "#1a0c08", phaseOff: 0.8,  speed: 0 },
+  { x: 3650, pose: "walk-right", body: "#3D7BD9", hair: "#5a3a20", phaseOff: 2.1,  speed: 7 },
+  { x: 4000, pose: "stand",      body: "#1a2454", hair: "#1a0c08", phaseOff: 1.4,  speed: 0 },
+  { x: 4350, pose: "walk-left",  body: "#DA1B5C", hair: "#3a2418", phaseOff: 0.4,  speed: 5 },
+];
+
+function BackgroundCitizen({ c, groundY }) {
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    let raf;
+    const tick = (now) => {
+      setT((now / 1000) + c.phaseOff);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [c.phaseOff]);
+  // Walk between [x-60, x+60] if walking
+  const walkRange = 60;
+  let xOff = 0;
+  let faceDir = 1;
+  if (c.speed > 0) {
+    xOff = Math.sin(t / 2) * walkRange;
+    faceDir = Math.cos(t / 2) > 0 ? 1 : -1;
+    if (c.pose === "walk-left") faceDir = -faceDir;
+  }
+  const cx = c.x + xOff;
+  const cy = groundY(cx);
+  const bob = c.speed > 0 ? Math.abs(Math.sin(t * c.speed)) * 1.6 : Math.sin(t * 1.4) * 0.5;
+  const moving = c.speed > 0;
+  const isSit = c.pose === "sit";
+  const armL = moving ? -Math.sin(t * c.speed) * 3 : 0;
+  const armR = moving ? Math.sin(t * c.speed) * 3 : 0;
+  const legL = moving ? Math.sin(t * c.speed) * 4 : 0;
+  const legR = moving ? -Math.sin(t * c.speed) * 4 : 0;
+  return (
+    <g transform={`translate(${cx}, ${cy - 22 + bob}) scale(${1.3 * faceDir}, 1.3)`} opacity="0.78">
+      {/* Drop shadow */}
+      <ellipse cx="0" cy="18" rx="10" ry="2.5" fill="#000" opacity="0.22" />
+      {!isSit && (
+        <>
+          {/* Legs */}
+          <rect x="-5" y="2" width="3" height={moving ? 14 + legR : 14} fill="#1a0c08" rx="1" />
+          <rect x="2" y="2" width="3" height={moving ? 14 + legL : 14} fill="#1a0c08" rx="1" />
+        </>
+      )}
+      {isSit && (
+        <>
+          {/* Bench under */}
+          <rect x="-9" y="10" width="18" height="3" fill="#3a2418" rx="1" />
+          <rect x="-7" y="13" width="2" height="6" fill="#1a0c08" />
+          <rect x="5" y="13" width="2" height="6" fill="#1a0c08" />
+          {/* Folded legs */}
+          <rect x="-5" y="6" width="10" height="6" fill="#1a0c08" rx="1" />
+        </>
+      )}
+      {/* Torso */}
+      <path d="M -7 -3 Q -8 -7 -5 -8 L 5 -8 Q 8 -7 7 -3 L 8 6 Q 4 8 0 8 Q -4 8 -8 6 Z" fill={c.body} />
+      {/* Arms */}
+      <rect x="-9" y="-3" width="2.5" height="8" fill={c.body} rx="1" transform={`translate(${armR * 0.4},0)`} />
+      <rect x="6.5" y="-3" width="2.5" height="8" fill={c.body} rx="1" transform={`translate(${armL * 0.4},0)`} />
+      {/* Neck */}
+      <rect x="-1.5" y="-9" width="3" height="2.5" fill="#c89880" />
+      {/* Head */}
+      <ellipse cx="0" cy="-14" rx="6" ry="7" fill="#c89880" />
+      {/* Hair */}
+      <path d="M -6 -16 Q -6 -21 -1 -21 L 4 -21 Q 6 -20 6 -17 L 6 -14 Q 5 -16 3 -16 L -5 -16 Z" fill={c.hair} />
+      {/* Tiny eyes */}
+      <circle cx="-2" cy="-13" r="0.6" fill="#1a0c08" />
+      <circle cx="2" cy="-13" r="0.6" fill="#1a0c08" />
+    </g>
+  );
+}
+
 function PlaceAtCurve({ p, isActive, isQuest, locked }) {
   const y = groundY(p.x);
   return <g transform={`translate(0, ${y - GROUND_Y})`}><Place p={p} isActive={isActive} isQuest={isQuest} locked={locked} /></g>;
@@ -2191,7 +2284,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v23</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v24</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -2208,6 +2301,15 @@ function ActBriefing({ state, dispatch }) {
   const lines = state.meetingPhase === "review" ? REVIEW_LINES : BRIEFING_LINES;
   const cur = lines[step] || lines[0];
   const currentName = cur?.sp?.toLowerCase() || "";
+
+  // CINEMATIC: when the player first enters the chamber, all five spotlights pulse together
+  // for ~2 seconds before settling into single-speaker mode. Records beautifully.
+  const [ceremonial, setCeremonial] = useState(step === 0 && state.meetingPhase !== "review");
+  useEffect(() => {
+    if (!ceremonial) return;
+    const t = setTimeout(() => setCeremonial(false), 2200);
+    return () => clearTimeout(t);
+  }, [ceremonial]);
 
   // Member seats around a long oak table — lifted UP so the bottom dialogue card doesn't cover them
   const seats = [
@@ -2326,28 +2428,33 @@ function ActBriefing({ state, dispatch }) {
         {/* ───────── Committee members seated ───────── */}
         {seats.map((s) => {
           const isCurrent = currentName === s.id;
+          const showSpotlight = isCurrent || ceremonial;
           return (
             <g key={s.id} transform={`translate(${s.x}, ${s.y})`}>
-              {/* Spotlight beam from above — current speaker only */}
-              {isCurrent && (
+              {/* Spotlight beam from above — current speaker, OR all 5 during ceremonial entry */}
+              {showSpotlight && (
                 <g style={{ pointerEvents: "none" }}>
                   <defs>
                     <linearGradient id={`spot-${s.id}`} x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={s.c} stopOpacity="0" />
-                      <stop offset="40%" stopColor={s.c} stopOpacity="0.18" />
-                      <stop offset="100%" stopColor={s.c} stopOpacity="0.45" />
+                      <stop offset="40%" stopColor={s.c} stopOpacity={ceremonial ? "0.22" : "0.18"} />
+                      <stop offset="100%" stopColor={s.c} stopOpacity={ceremonial ? "0.55" : "0.45"} />
                     </linearGradient>
                   </defs>
                   <polygon points={`-12,-${s.y - 5} 12,-${s.y - 5} 50,40 -50,40`} fill={`url(#spot-${s.id})`}>
-                    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.6s" repeatCount="indefinite" />
+                    {ceremonial ? (
+                      <animate attributeName="opacity" values="0.3;1;0.3" dur="1.4s" repeatCount="indefinite" />
+                    ) : (
+                      <animate attributeName="opacity" values="0.5;1;0.5" dur="1.6s" repeatCount="indefinite" />
+                    )}
                   </polygon>
                 </g>
               )}
-              {/* Pulse ring for current speaker */}
-              {isCurrent && (
+              {/* Pulse ring — current speaker, OR all 5 during ceremonial */}
+              {showSpotlight && (
                 <circle r="58" fill={s.c} opacity="0.2">
-                  <animate attributeName="r" values="48;68;48" dur="1.8s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.1;0.3;0.1" dur="1.8s" repeatCount="indefinite" />
+                  <animate attributeName="r" values="48;68;48" dur={ceremonial ? "1.4s" : "1.8s"} repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.1;0.3;0.1" dur={ceremonial ? "1.4s" : "1.8s"} repeatCount="indefinite" />
                 </circle>
               )}
               {/* Chair back */}
@@ -2448,8 +2555,23 @@ function ActBriefing({ state, dispatch }) {
         <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FLOOR 8 · BANK OF VOSTON</div>
       </div>
 
-      {/* Dialogue card — bottom strip, more compact so committee remains visible */}
-      {cur && (
+      {/* CEREMONIAL ENTRY BADGE — visible for the first ~2s while all spotlights pulse */}
+      {ceremonial && (
+        <div style={{
+          position: "absolute", top: "42%", left: "50%", transform: "translate(-50%, -50%)",
+          textAlign: "center", zIndex: 5,
+          animation: "fadeIn 0.5s ease-out",
+          pointerEvents: "none",
+        }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 12, color: C.gold, letterSpacing: "0.45em", fontWeight: 800, marginBottom: 8 }}>● ASSEMBLED</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 72, color: C.textCream, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.9, textShadow: "0 12px 60px rgba(0,0,0,0.8)" }}>The Committee.</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.gold, fontWeight: 600, fontStyle: "italic", marginTop: 12, letterSpacing: "-0.005em" }}>Five votes. One decision. Ten million lives.</div>
+        </div>
+      )}
+
+      {/* Dialogue card — bottom strip, more compact so committee remains visible.
+          Hidden during ceremonial entry so the assembled-committee shot can breathe. */}
+      {cur && !ceremonial && (
         <div key={step} className="popupIn" style={{
           position: "absolute", bottom: 56, left: "50%", transform: "translateX(-50%)",
           width: "min(840px, 88%)", background: "rgba(8,8,16,0.92)",
@@ -2716,17 +2838,50 @@ function ActRateReaction({ state, dispatch }) {
       <div style={{ flex: 1, padding: "16px 50px", overflow: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         {reactions.map((r, i) => {
           if (i > step) return null;
+          // Headlines get the "newspaper stamp" treatment — rotated, white-bordered, dramatic entry
+          if (r.type === "headline") {
+            return (
+              <div key={i} className="headlineStampIn" style={{
+                display: "flex", gap: 14, padding: "16px 22px",
+                background: "#f7eedd",
+                border: `4px solid ${r.color}`,
+                borderRadius: 2,
+                color: "#1a0c08",
+                transform: "rotate(-2deg)",
+                boxShadow: `0 18px 50px rgba(0,0,0,0.5), inset 0 0 0 2px rgba(0,0,0,0.05)`,
+                position: "relative",
+                marginLeft: 8, marginRight: 8,
+              }}>
+                {/* Newspaper texture lines */}
+                <div style={{
+                  position: "absolute", inset: 0, pointerEvents: "none",
+                  backgroundImage: "repeating-linear-gradient(0deg, transparent 0, transparent 14px, rgba(0,0,0,0.04) 14px, rgba(0,0,0,0.04) 15px)",
+                  borderRadius: 2,
+                }} />
+                {/* "STOP PRESS" stamp */}
+                <div style={{
+                  position: "absolute", top: -10, right: 18,
+                  background: r.color, color: "#fff",
+                  padding: "4px 12px", fontFamily: FONT_M, fontSize: 9,
+                  letterSpacing: "0.32em", fontWeight: 800,
+                  transform: "rotate(3deg)",
+                  boxShadow: "0 4px 14px rgba(0,0,0,0.4)",
+                }}>STOP PRESS</div>
+                <div style={{ width: 48, height: 48, background: r.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 800, position: "relative", zIndex: 1 }}>NEWS</div>
+                <div style={{ flex: 1, position: "relative", zIndex: 1 }}>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: r.color, letterSpacing: "0.28em", fontWeight: 800, borderBottom: `1px solid ${r.color}55`, paddingBottom: 3 }}>{r.who}</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 22, color: "#1a0c08", fontWeight: 900, lineHeight: 1.15, marginTop: 6, letterSpacing: "-0.015em" }}>{r.text}</div>
+                </div>
+              </div>
+            );
+          }
+          // Person reactions stay as-is
           return (
             <div key={i} className="popupIn" style={{ display: "flex", gap: 14, padding: "14px 18px", background: "rgba(255,248,238,0.04)", borderLeft: `4px solid ${r.color}`, borderRadius: 3 }}>
-              {r.type === "person" && (
-                <div style={{ width: 48, height: 48, borderRadius: "50%", background: r.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_D, fontWeight: 800, fontSize: 22, flexShrink: 0 }}>{r.name[0]}</div>
-              )}
-              {r.type === "headline" && (
-                <div style={{ width: 48, height: 48, background: r.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.18em", fontWeight: 800 }}>NEWS</div>
-              )}
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: r.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_D, fontWeight: 800, fontSize: 22, flexShrink: 0 }}>{r.name[0]}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: FONT_M, fontSize: 9, color: r.color, letterSpacing: "0.22em", fontWeight: 800 }}>{r.who || r.name}</div>
-                <div style={{ fontFamily: FONT_D, fontSize: 20, color: C.surface, fontWeight: r.type === "headline" ? 800 : 500, lineHeight: 1.3, marginTop: 2, fontStyle: r.type === "person" ? "italic" : "normal" }}>"{r.text}"</div>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: r.color, letterSpacing: "0.22em", fontWeight: 800 }}>{r.name}</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 20, color: C.surface, fontWeight: 500, lineHeight: 1.3, marginTop: 2, fontStyle: "italic" }}>"{r.text}"</div>
               </div>
             </div>
           );
@@ -4145,8 +4300,25 @@ function CompoundRace({ state, dispatch, onBack }) {
             {lanes.map((lane) => {
               const pct = Math.min(100, (lane.value / maxVal) * 100);
               const isLeader = lane.id === leader && year > 5;
+              // Is this lane being shocked this year?
+              const affectedByEvent = isEventYear && recentEvent && (
+                (lane.id === "growth" && (recentEvent.type === "crash" || recentEvent.type === "boom")) ||
+                (lane.id === "mattress" && recentEvent.type === "inflation") ||
+                (lane.id === "safe" && recentEvent.type === "inflation")
+              );
+              const isBadEvent = affectedByEvent && (recentEvent.type === "crash" || recentEvent.type === "inflation");
+              const isGoodEvent = affectedByEvent && recentEvent.type === "boom";
               return (
-                <div key={lane.id} style={{ position: "relative", background: "rgba(255,248,238,0.04)", border: `2px solid ${lane.color}88`, borderRadius: 8, padding: "14px 14px 18px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                <div key={lane.id} className={affectedByEvent ? "shakeOnce" : ""} style={{ position: "relative", background: "rgba(255,248,238,0.04)", border: `2px solid ${affectedByEvent ? (isBadEvent ? C.red : C.teal) : `${lane.color}88`}`, borderRadius: 8, padding: "14px 14px 18px", display: "flex", flexDirection: "column", overflow: "hidden", transition: "border 0.3s" }}>
+                  {/* Flash overlay when affected */}
+                  {affectedByEvent && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: isBadEvent ? C.red : C.teal,
+                      animation: isBadEvent ? "redFlash 0.7s ease-out" : "goldFlash 0.7s ease-out",
+                      pointerEvents: "none", zIndex: 1,
+                    }} />
+                  )}
                   {/* Lane header */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, position: "relative", zIndex: 2 }}>
                     <div style={{ width: 44, height: 44, background: lane.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, borderRadius: 8 }}>{lane.icon}</div>
@@ -4328,10 +4500,11 @@ function BankModeChooser({ onPick, dispatch, state }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, maxWidth: 1280, width: "100%" }}>
             {/* Card 1 — Future You */}
-            <button onClick={() => onPick("future")} className="popupIn" style={{
+            <button onClick={() => onPick("future")} style={{
               background: "rgba(255,248,238,0.97)", border: `2px solid ${C.coral}`, borderRadius: 6,
               padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
               boxShadow: `0 16px 40px ${C.coral}44`,
+              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.0s both",
             }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
               <div style={{ fontSize: 34 }}>📈</div>
               <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● PERSONAL · 30 YEARS</div>
@@ -4347,10 +4520,11 @@ function BankModeChooser({ onPick, dispatch, state }) {
             </button>
 
             {/* Card 2 — Budget Health Check */}
-            <button onClick={() => onPick("budget")} className="popupIn" style={{
+            <button onClick={() => onPick("budget")} style={{
               background: "rgba(255,248,238,0.97)", border: `2px solid ${C.teal}`, borderRadius: 6,
               padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
               boxShadow: `0 16px 40px ${C.teal}44`, position: "relative",
+              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both",
             }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
               <div style={{ fontSize: 34 }}>🏘</div>
               <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● A NEIGHBOUR · 12 MONTHS</div>
@@ -4366,10 +4540,11 @@ function BankModeChooser({ onPick, dispatch, state }) {
             </button>
 
             {/* Card 3 — Compound Race (NEW) */}
-            <button onClick={() => onPick("race")} className="popupIn" style={{
+            <button onClick={() => onPick("race")} style={{
               background: "rgba(255,248,238,0.97)", border: `2px solid ${C.gold}`, borderRadius: 6,
               padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
               boxShadow: `0 16px 40px ${C.gold}44`, position: "relative",
+              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both",
             }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
               <div style={{ position: "absolute", top: 10, right: 10, background: C.coral, color: "#fff", padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.2em", fontWeight: 800, borderRadius: 2 }}>NEW</div>
               <div style={{ fontSize: 34 }}>🏁</div>
@@ -5737,6 +5912,25 @@ function PressConference({ state, dispatch }) {
   const hike = rate > 3.5;
   const cut = rate < 2.5;
 
+  // CAMERA FLASHBULBS — random bursts from the press pit. Looks great on camera.
+  const [flashes, setFlashes] = useState([]);
+  useEffect(() => {
+    const spawn = () => {
+      const id = Math.random().toString(36).slice(2, 8);
+      const x = 5 + Math.random() * 90; // 5-95% from left
+      const y = 65 + Math.random() * 25; // bottom band
+      setFlashes((f) => [...f, { id, x, y }]);
+      setTimeout(() => setFlashes((f) => f.filter((p) => p.id !== id)), 400);
+    };
+    // initial burst — three quick flashes
+    spawn();
+    setTimeout(spawn, 250);
+    setTimeout(spawn, 480);
+    // then ongoing every 1.5-3s
+    const iv = setInterval(spawn, 1800 + Math.random() * 1200);
+    return () => clearInterval(iv);
+  }, [state.pressStep]);
+
   // Press conference has phases: intro → questions → statement choice → reaction
   const pol = state.policy;
   const heavyQE = pol.qe > 1.5;
@@ -5770,6 +5964,19 @@ function PressConference({ state, dispatch }) {
     const cur = QUESTIONS[state.pressStep];
     return (
       <div style={{ position: "absolute", inset: 0, background: "rgba(10,5,20,0.92)", zIndex: 38, display: "flex", flexDirection: "column", padding: 30, justifyContent: "center" }}>
+        {/* CAMERA FLASHBULBS */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden", zIndex: 1 }}>
+          {flashes.map((f) => (
+            <div key={f.id} style={{
+              position: "absolute", left: `${f.x}%`, top: `${f.y}%`,
+              width: 80, height: 80, borderRadius: "50%",
+              background: `radial-gradient(circle, #fff 0%, ${C.gold}66 30%, transparent 65%)`,
+              transform: "translate(-50%, -50%)",
+              animation: "spawnDust 0.4s ease-out forwards",
+              filter: "blur(2px)",
+            }} />
+          ))}
+        </div>
         {/* PULSE-INSPIRED: live approval meter + mini-network in corners */}
         <div style={{ position: "absolute", top: 24, right: 24, width: 240 }}>
           <LiveApprovalMeter value={state.publicTrust ?? 50} label="LIVE · PUBLIC APPROVAL" />
@@ -7033,7 +7240,7 @@ function IntroScreen({ onStart }) {
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v23 · GREAT VOSTON EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v24 · GREAT VOSTON EDITION</div>
       </div>
 
       {/* Full-bleed cityscape */}
@@ -7271,6 +7478,22 @@ export default function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [showControlsHint, setShowControlsHint] = useState(false);
 
+  // Click ripple — small gold burst at the cursor on every click. Looks great on camera.
+  const [ripples, setRipples] = useState([]);
+  useEffect(() => {
+    const onClick = (e) => {
+      // Only ripple on left-clicks. Skip if target is inside an input/range/textarea.
+      if (e.button !== 0) return;
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      const id = Math.random().toString(36).slice(2, 8);
+      setRipples((r) => [...r, { id, x: e.clientX, y: e.clientY }]);
+      setTimeout(() => setRipples((r) => r.filter((p) => p.id !== id)), 720);
+    };
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, []);
+
   // Show controls hint briefly after intro dismisses
   useEffect(() => {
     if (!showIntro) {
@@ -7420,6 +7643,23 @@ export default function App() {
         @keyframes letterPop { 0% { opacity: 0; transform: scale(0.3) translateY(40px); filter: blur(10px); } 60% { opacity: 1; transform: scale(1.08) translateY(0); filter: blur(0); } 100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); } }
         @keyframes spawnPop { 0% { opacity: 0; transform: scale(0) translateY(-40px); } 35% { opacity: 1; transform: scale(1.4) translateY(0); } 55% { transform: scale(0.85) translateY(0); } 75% { transform: scale(1.08) translateY(0); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
         @keyframes spawnDust { 0% { opacity: 0; transform: scale(0); } 30% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(2.4); } }
+        @keyframes shake { 0%, 100% { transform: translate(0, 0); } 10% { transform: translate(-4px, -2px) rotate(-0.4deg); } 20% { transform: translate(5px, 2px) rotate(0.5deg); } 30% { transform: translate(-3px, 3px) rotate(-0.3deg); } 40% { transform: translate(4px, -3px) rotate(0.4deg); } 50% { transform: translate(-5px, 1px) rotate(-0.5deg); } 60% { transform: translate(3px, 3px) rotate(0.3deg); } 70% { transform: translate(-3px, -2px) rotate(-0.2deg); } 80% { transform: translate(2px, 2px) rotate(0.2deg); } 90% { transform: translate(-1px, -1px) rotate(-0.1deg); } }
+        @keyframes screenShake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-3px, 2px); } 50% { transform: translate(3px, -2px); } 75% { transform: translate(-2px, -3px); } }
+        @keyframes redFlash { 0%, 100% { opacity: 0; } 30%, 50% { opacity: 0.35; } }
+        @keyframes goldFlash { 0%, 100% { opacity: 0; } 30%, 50% { opacity: 0.45; } }
+        @keyframes headlineStamp { 0% { opacity: 0; transform: scale(2.5) rotate(-12deg); filter: blur(8px); } 60% { opacity: 1; transform: scale(0.92) rotate(-3deg); filter: blur(0); } 80% { transform: scale(1.04) rotate(-2deg); } 100% { opacity: 1; transform: scale(1) rotate(-2deg); filter: blur(0); } }
+        @keyframes spotlightSweep { 0% { opacity: 0; } 30% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0.5; } }
+        @keyframes ceremonialPulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes sceneFadeIn { 0% { opacity: 0; filter: brightness(0.3); } 100% { opacity: 1; filter: brightness(1); } }
+        @keyframes clickRipple { 0% { transform: scale(0); opacity: 0.7; } 100% { transform: scale(4); opacity: 0; } }
+        @keyframes idleWalk { 0%, 100% { transform: translateX(0) translateY(0); } 50% { transform: translateX(0) translateY(-1px); } }
+        @keyframes windowFlicker { 0%, 80%, 100% { opacity: 1; } 82%, 85% { opacity: 0.3; } }
+        @keyframes hintArrow { 0%, 100% { transform: translateY(0); opacity: 0.7; } 50% { transform: translateY(-6px); opacity: 1; } }
+        @keyframes glowRing { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(2.2); opacity: 0; } }
+        .shakeOnce { animation: shake 0.45s cubic-bezier(.36,.07,.19,.97); }
+        .screenShakeOnce { animation: screenShake 0.3s; }
+        .headlineStampIn { animation: headlineStamp 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        .ceremonialMode circle.ceremonial { animation: ceremonialPulse 1.2s ease-in-out infinite; }
         .popupIn { animation: popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
         input[type=range] { height: 6px; -webkit-appearance: none; background: ${C.surface3}; border-radius: 3px; }
         input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: ${C.coral}; border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(26,16,8,0.3); }
@@ -7535,6 +7775,20 @@ export default function App() {
             }}>GOT IT</button>
           </div>
         )}
+      </div>
+
+      {/* CLICK RIPPLES — gold particle burst at every left-click. Adds polish on screen recording. */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9999 }}>
+        {ripples.map((r) => (
+          <div key={r.id} style={{
+            position: "fixed", left: r.x - 18, top: r.y - 18, width: 36, height: 36,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${C.goldBright} 0%, ${C.gold}88 35%, transparent 70%)`,
+            border: `2px solid ${C.gold}`,
+            animation: "clickRipple 0.7s ease-out forwards",
+            pointerEvents: "none",
+          }} />
+        ))}
       </div>
     </>
   );
