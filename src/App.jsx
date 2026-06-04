@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   GREAT VOSTON · v24 · Bank of Voston Edition · BoE prototype
+   GREAT VOSTAN · v25 · Bank of Vostan Edition · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -118,7 +118,7 @@ const BUILDINGS = [
   // FINANCIAL (x: 3500 - 4800)
   { id: "fbank", name: "Savings Bank", x: 3700, color: C.bBank, dark: C.bBankD, type: "classical" },
   { id: "stocks", name: "Stock Exchange", x: 4050, color: C.bStocks, dark: C.bStocksD, type: "glass" },
-  { id: "reserve", name: "Bank of Voston", x: 4500, color: C.bReserve, dark: C.bReserveD, type: "tower" },
+  { id: "reserve", name: "Bank of Vostan", x: 4500, color: C.bReserve, dark: C.bReserveD, type: "tower" },
 ];
 
 const PLACES = BUILDINGS;
@@ -140,14 +140,14 @@ const NPCS = [
 // ─── QUESTS ─────────────────────────────────────────────────
 const QUESTS = {
   // DAY 1 — narrative spine, each quest leads to the next
-  q1: { title: "Step outside your flat", desc: "Tomorrow you start at the Bank of Voston as a key decision-maker on the Monetary Policy Committee. But today, walk among the people. Your neighbour Mr Halim is outside. Press E to talk.", target: "halim_npc", xp: 10, next: "q2" },
+  q1: { title: "Step outside your flat", desc: "Tomorrow you start at the Bank of Vostan as a key decision-maker on the Monetary Policy Committee. But today, walk among the people. Your neighbour Mr Halim is outside. Press E to talk.", target: "halim_npc", xp: 10, next: "q2" },
   q2: { title: "Go to Amara's Market", desc: "You need groceries. Take the stairs up to the city centre. Then walk to the market with the red awning.", target: "market", xp: 20, next: "q3" },
   q3: { title: "Sort your savings out", desc: "After what you saw at the market, you need to think hard about how much you can actually put aside. Visit the Savings Bank — it's up in the financial district.", target: "fbank", xp: 30, next: "q4" },
   q4: { title: "The trading floor opens at 10", desc: "Stock Exchange — same district, just along the way. Optional but interesting.", target: "stocks", xp: 30, next: "q5" },
   q5: { title: "Head home, it's getting late", desc: "Walk back to your flat. Tomorrow's the big day.", target: "flat", xp: 20, next: "q6" },
   q6: { title: "Sleep on it", desc: "Press the SLEEP button in the flat panel.", target: null, xp: 10, next: "q7" },
   // DAY 2 — work at the Reserve
-  q7: { title: "Tuesday morning. Take your seat.", desc: "Your first day on the Monetary Policy Committee. Walk up to the financial district. The gold tower at the far left is the Bank of Voston.", target: "reserve", xp: 30, next: "q8" },
+  q7: { title: "Tuesday morning. Take your seat.", desc: "Your first day on the Monetary Policy Committee. Walk up to the financial district. The gold tower at the far left is the Bank of Vostan.", target: "reserve", xp: 30, next: "q8" },
   q8: { title: "Sit through the briefing & decide", desc: "The committee will share their views. You make the call. Everything you saw yesterday is your evidence.", target: null, xp: 80, next: "q9" },
   q9: { title: "Face the press", desc: "Reporters are waiting outside. You have to say something. Make it count.", target: null, xp: 60, next: "q10" },
   q10: { title: "Walk back and see what you did", desc: "Find Mr Halim, Amara, Yusuf, Desta. Hear how your decision landed in their lives.", target: null, xp: 80, next: null },
@@ -546,7 +546,7 @@ function Player({ x, y, faceDir, moving }) {
       <circle cx="2.8" cy="-15.3" r="0.3" fill="#fff8ee" />
       {/* Mouth — slight subtle line */}
       <path d="M -1.5 -11.5 Q 0 -10.8 1.5 -11.5" stroke="#5a2418" strokeWidth="0.5" fill="none" strokeLinecap="round" />
-      {/* Bank of Voston lanyard with gold badge */}
+      {/* Bank of Vostan lanyard with gold badge */}
       <line x1="-2" y1="-7" x2="0" y2="-2" stroke="#1a0c08" strokeWidth="0.5" />
       <rect x="-1" y="-2" width="2" height="2.5" fill={C.gold} stroke="#1a0c08" strokeWidth="0.3" />
     </g>
@@ -1045,7 +1045,7 @@ function LightShaft({ x, y, w, h, color = "#fff8ee", opacity = 0.12 }) {
 // ═══ PULSE-INSPIRED UPGRADES ═══════════════════════════════
 // New shared components borrowed from the Pulse prototype:
 // live vitals, transmission diagram, ambient ticker, approval
-// meter. All rendered in Great Voston's warm cream/coral/gold palette
+// meter. All rendered in Great Vostan's warm cream/coral/gold palette
 // instead of the cold bioluminescent Pulse aesthetic.
 // ════════════════════════════════════════════════════════════
 
@@ -1205,7 +1205,7 @@ function MiniTransmission({ state, hoveredRate, hoveredQE, hoveredMP, label }) {
   const qe = hoveredQE !== undefined ? hoveredQE : (state.policy?.qe ?? 0);
   const mp = hoveredMP !== undefined ? hoveredMP : (state.policy?.macroPru ?? 0);
 
-  // Six sectors arranged in Great Voston's hex layout
+  // Six sectors arranged in Great Vostan's hex layout
   const sectors = [
     { id: "house",  short: "HH", name: "HOUSEHOLDS",  color: C.rose,   x: 0.50, y: 0.18 },
     { id: "firm",   short: "FM", name: "FIRMS",       color: C.gold,   x: 0.18, y: 0.38 },
@@ -2004,7 +2004,7 @@ function HUD({ state }) {
         <div style={{ width: 12, height: 28, background: C.gold, borderRadius: 1 }} />
         <div style={{ width: 12, height: 28, background: C.teal, borderRadius: 1 }} />
         <div style={{ marginLeft: 6 }}>
-          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.ink, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>GREAT VOSTON</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.ink, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1 }}>GREAT VOSTAN</div>
           <div style={{ fontFamily: FONT_H, fontSize: 14, color: C.coral, fontWeight: 600, lineHeight: 1, marginTop: 1 }}>the living economy</div>
         </div>
       </div>
@@ -2088,7 +2088,7 @@ function PhonePanel({ state, dispatch }) {
         <div style={{ height: "100%", background: C.surface2, borderRadius: 24, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 16px", fontFamily: FONT_M, fontSize: 11, color: C.ink, fontWeight: 600 }}>
             <span>8:00 AM · MON</span>
-            <span style={{ color: C.coral }}>● Vostonian 5G</span>
+            <span style={{ color: C.coral }}>● Vostanian 5G</span>
           </div>
           <div style={{ display: "flex", gap: 4, padding: "8px 8px", borderBottom: `1px solid ${C.border}` }}>
             {[{ id: "msg", icon: "💬", label: "Messages" }, { id: "news", icon: "📰", label: "News" }, { id: "notes", icon: "📓", label: "Notes" }, { id: "wallet", icon: "💼", label: "Wallet" }].map((t) => (
@@ -2134,7 +2134,7 @@ function PhonePanel({ state, dispatch }) {
               <div>
                 <div style={{ fontSize: 9, fontFamily: FONT_M, color: C.coral, letterSpacing: "0.2em", marginBottom: 8, fontWeight: 700 }}>THIS MORNING</div>
                 {[
-                  { p: "Voston Times", t: `Inflation at ${pct(state.inflation)}: families squeezed`, c: C.coral },
+                  { p: "Vostan Times", t: `Inflation at ${pct(state.inflation)}: families squeezed`, c: C.coral },
                   { p: "Daily Marka", t: "MPC meets this week. Rate decision in spotlight.", c: C.gold },
                   { p: "Varena Post", t: "Cost of living tops public concern, polling shows", c: C.coral },
                   { p: "Markets", t: "Keldra Tech up 4% on AI deal. Rail stocks flat.", c: C.green },
@@ -2263,7 +2263,7 @@ function MeetingRoom({ state, dispatch }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● LIVE · MONETARY POLICY COMMITTEE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>TUESDAY · 09:00 GMT · BANK OF VOSTON</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>TUESDAY · 09:00 GMT · BANK OF VOSTAN</div>
       </div>
 
       {/* PULSE-INSPIRED: live vitals strip across all decision phases */}
@@ -2284,7 +2284,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v24</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v25</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -2552,7 +2552,7 @@ function ActBriefing({ state, dispatch }) {
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● LIVE · MONETARY POLICY COMMITTEE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FLOOR 8 · BANK OF VOSTON</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>FLOOR 8 · BANK OF VOSTAN</div>
       </div>
 
       {/* CEREMONIAL ENTRY BADGE — visible for the first ~2s while all spotlights pulse */}
@@ -2793,7 +2793,7 @@ function ActRateReaction({ state, dispatch }) {
   // Composed reaction wall
   const reactions = [
     { type: "headline", color: a1 === "cut-hard" ? C.red : isHike ? C.coral : a1 === "cut" ? C.teal : C.gold,
-      who: "VOSTON TIMES · BREAKING",
+      who: "VOSTAN TIMES · BREAKING",
       text: a1 === "cut-hard" ? "RESERVE CUTS HARD — INFLATION FEARS EXPLODE" :
             a1 === "cut" ? "RESERVE EASES — MORTGAGE RELIEF, INFLATION DOUBT" :
             a1 === "hold" ? "RESERVE HOLDS — 'PARALYSIS' SAYS PRESS" :
@@ -3112,7 +3112,7 @@ function StockExchangePanel({ state, dispatch }) {
   // 6 stocks
   const STOCKS_INIT = [
     { sym: "TECH", name: "Verdane Tech",     base: 120, vol: 0.04, color: C.coral,  sector: "tech",   pos: 0, dividend: 0,    sensitivity: { tech: 1.4, rate: -0.6, oil: 0,    housing: 0 } },
-    { sym: "BANK", name: "Bank of Voston",    base: 88,  vol: 0.02, color: C.teal,   sector: "banks",  pos: 0, dividend: 0.04, sensitivity: { tech: 0,   rate: 1.2,  oil: 0,    housing: 0.4 } },
+    { sym: "BANK", name: "Bank of Vostan",    base: 88,  vol: 0.02, color: C.teal,   sector: "banks",  pos: 0, dividend: 0.04, sensitivity: { tech: 0,   rate: 1.2,  oil: 0,    housing: 0.4 } },
     { sym: "OIL",  name: "Varena Petroleum", base: 64,  vol: 0.05, color: C.gold,   sector: "oil",    pos: 0, dividend: 0.06, sensitivity: { tech: 0,   rate: -0.3, oil: 1.6,  housing: 0 } },
     { sym: "HOMES",name: "Keldra Homes",     base: 42,  vol: 0.03, color: C.purple, sector: "homes",  pos: 0, dividend: 0.03, sensitivity: { tech: 0,   rate: -1.5, oil: 0,    housing: 1.4 } },
     { sym: "GOLD", name: "Gold Bullion ETF", base: 195, vol: 0.015,color: C.gold,   sector: "gold",   pos: 0, dividend: 0,    sensitivity: { tech: -0.3,rate: -0.5, oil: 0.4,  housing: 0 } },
@@ -3644,7 +3644,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
             </div>
           </div>
 
-          {/* RIGHT: Live forecast + Voston resilience */}
+          {/* RIGHT: Live forecast + Vostan resilience */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14, minHeight: 0 }}>
             <div style={{ background: "rgba(255,248,238,0.97)", borderRadius: 6, padding: "18px 22px" }}>
               <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 8 }}>● 12-MONTH FORECAST</div>
@@ -3653,11 +3653,11 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
               <ForecastRow label="Resilience score" value={`${Math.round(resilience)}/100`} sub={resilience >= 70 ? "Strong — can weather shocks" : resilience >= 40 ? "Fragile — one shock away from trouble" : "Critical — debt likely to spiral"} color={resilience >= 70 ? C.teal : resilience >= 40 ? C.gold : C.coral} big />
             </div>
 
-            {/* Great Voston resilience preview */}
+            {/* Great Vostan resilience preview */}
             <div style={{ flex: 1, background: "linear-gradient(180deg, #0a1230 0%, #1a2454 60%, #2a1c4a 100%)", borderRadius: 6, padding: "14px 16px", border: `1px solid ${C.borderL}`, display: "flex", flexDirection: "column", minHeight: 180 }}>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 6 }}>● NATIONAL IMPACT · IF 10,000 VOSTONIANS DID THIS</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 6 }}>● NATIONAL IMPACT · IF 10,000 VOSTANIANS DID THIS</div>
               <div style={{ flex: 1, position: "relative" }}>
-                <VostonSkyline resilience={resilience} />
+                <VostanSkyline resilience={resilience} />
               </div>
               <div style={{ fontFamily: FONT_B, fontSize: 11.5, color: C.textCream, lineHeight: 1.45, fontStyle: "italic", marginTop: 6 }}>
                 {resilience >= 70 ? "Households absorb shocks. The Bank intervenes less. The currency stays stable. The Reserve has room to act when it matters."
@@ -3878,7 +3878,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
 
           {/* Skyline at very bottom — lights tick on as resilience grows */}
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 50, overflow: "hidden", opacity: 0.7, pointerEvents: "none" }}>
-            <VostonSkyline resilience={Math.max(0, Math.min(100, 30 + (emergency / 100) - (stress / 4)))} thin />
+            <VostanSkyline resilience={Math.max(0, Math.min(100, 30 + (emergency / 100) - (stress / 4)))} thin />
           </div>
         </div>
 
@@ -3953,10 +3953,10 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
           <div style={{ background: "linear-gradient(180deg, #0a1230 0%, #1a2454 60%, #2a1c4a 100%)", borderRadius: 6, padding: "18px 22px", border: `2px solid ${C.gold}66` }}>
             <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800 }}>● NATIONAL IMPACT</div>
             <div style={{ fontFamily: FONT_D, fontSize: 28, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1, marginTop: 6 }}>
-              If 10,000 Vostonians budget like this…
+              If 10,000 Vostanians budget like this…
             </div>
             <div style={{ marginTop: 14, height: 90, position: "relative" }}>
-              <VostonSkyline resilience={resilienceFinal} />
+              <VostanSkyline resilience={resilienceFinal} />
             </div>
             <div style={{ marginTop: 14, padding: "10px 14px", background: "rgba(0,0,0,0.3)", borderRadius: 4 }}>
               <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.22em", fontWeight: 800, marginBottom: 6 }}>PROJECTED COUNTRY-LEVEL EFFECTS</div>
@@ -4076,8 +4076,8 @@ function ResultRow({ label, value, sub, color }) {
   );
 }
 
-// VostonSkyline: shows the country's resilience as a skyline with windows lighting up
-function VostonSkyline({ resilience, thin }) {
+// VostanSkyline: shows the country's resilience as a skyline with windows lighting up
+function VostanSkyline({ resilience, thin }) {
   const lit = Math.round((resilience / 100) * 96); // up to 96 windows
   const buildings = [
     { x: 20, w: 50, h: thin ? 38 : 78, c: C.bStocks },
@@ -4478,7 +4478,7 @@ function BankModeChooser({ onPick, dispatch, state }) {
       <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
-          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>SAVINGS BANK · VOSTON HIGH STREET</div>
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>SAVINGS BANK · VOSTAN HIGH STREET</div>
         </div>
         <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>PICK A TOOL</div>
       </div>
@@ -4530,7 +4530,7 @@ function BankModeChooser({ onPick, dispatch, state }) {
               <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● A NEIGHBOUR · 12 MONTHS</div>
               <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Budget Health Check</div>
               <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
-                Pick a neighbour from the city. Allocate their monthly income across the four jars. Run a year forward, with shocks. See your plan ripple out into Great Voston's resilience.
+                Pick a neighbour from the city. Allocate their monthly income across the four jars. Run a year forward, with shocks. See your plan ripple out into Great Vostan's resilience.
               </div>
               <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
                 <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>BUDGET RULES</span>
@@ -4566,7 +4566,7 @@ function BankModeChooser({ onPick, dispatch, state }) {
       </div>
 
       <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF VOSTON · "INVEST EARLY · INVEST OFTEN"</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF VOSTAN · "INVEST EARLY · INVEST OFTEN"</div>
       </div>
     </div>
   );
@@ -4788,7 +4788,7 @@ function FutureYouSim({ state, dispatch, onBack }) {
         </div>
 
         <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF VOSTON · "INVEST EARLY · INVEST OFTEN"</div>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>BANK OF VOSTAN · "INVEST EARLY · INVEST OFTEN"</div>
         </div>
       </div>
     );
@@ -6209,7 +6209,7 @@ function NewsroomPress({ state, dispatch }) {
   // Three big headlines, one per second-ish, dramatic typewriter
   const headlines = [
     {
-      paper: "VOSTON TIMES",
+      paper: "VOSTAN TIMES",
       mast: "Quality journalism since 1924",
       kicker: "BREAKING · MONETARY POLICY",
       big: a1 === "raise" ? "RESERVE STRIKES" : "RESERVE HOLDS",
@@ -6874,7 +6874,7 @@ function ConsequenceMontage({ state, dispatch }) {
   const scenes = [
     {
       type: "headline",
-      paper: "VOSTON TIMES",
+      paper: "VOSTAN TIMES",
       color: hike ? C.coral : cut ? C.teal : C.red,
       bigHeadline: hike ? "RESERVE STRIKES" : cut ? "RESERVE BLINKS" : "RESERVE FROZEN AT THE WHEEL",
       subhead: hike ? `Rate hike to ${pct(rate)} — Governor invokes 'discipline'. Mortgage holders reel across Varena.` : cut ? `Cut to ${pct(rate)} sparks borrower relief — and immediate inflation fears.` : `Hold at ${pct(rate)} while inflation runs at ${pct(state.inflation)}. Critics call it 'paralysis'. Editorial pages: 'do something'.`,
@@ -7240,7 +7240,7 @@ function IntroScreen({ onStart }) {
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v24 · GREAT VOSTON EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v25 · GREAT VOSTAN EDITION</div>
       </div>
 
       {/* Full-bleed cityscape */}
@@ -7409,7 +7409,7 @@ function IntroScreen({ onStart }) {
           opacity: phase >= 2 ? 1 : 0,
           animation: phase >= 2 ? "letterPop 1.1s 0.4s both" : "none",
           position: "relative", zIndex: 1,
-        }}>GREAT VOSTON</div>
+        }}>GREAT VOSTAN</div>
         <div style={{
           fontFamily: FONT_H, fontSize: 36, color: C.gold, fontWeight: 600,
           textShadow: "0 2px 18px rgba(0,0,0,0.8)",
@@ -7432,9 +7432,9 @@ function IntroScreen({ onStart }) {
           backdropFilter: "blur(2px)",
         }}>
           <p style={{ fontFamily: FONT_D, fontSize: 22, color: C.textCream, lineHeight: 1.45, margin: 0, fontWeight: 500 }}>
-            You're not just starting a job. You're about to become a key decision-maker at the <span style={{ color: C.gold, fontWeight: 700 }}>Bank of Voston</span>.<br/>
+            You're not just starting a job. You're about to become a key decision-maker at the <span style={{ color: C.gold, fontWeight: 700 }}>Bank of Vostan</span>.<br/>
             Today: walk through Varena and meet the people who'll feel your decisions.<br/>
-            Tomorrow: walk into the Bank of Voston and decide.
+            Tomorrow: walk into the Bank of Vostan and decide.
           </p>
         </div>
 
@@ -7465,7 +7465,7 @@ function IntroScreen({ onStart }) {
 
       {/* Bottom letterbox */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 48, background: "#000", zIndex: 5, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>VARENA · CAPITAL OF GREAT VOSTON · POPULATION 9.8M</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>VARENA · CAPITAL OF GREAT VOSTAN · POPULATION 9.8M</div>
         <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● ENTER FULLSCREEN FOR BEST EXPERIENCE</div>
       </div>
     </div>
@@ -7522,7 +7522,7 @@ export default function App() {
     if (showIntro) return;
     const NOTIFS = [
       { from: "YUSUF", icon: "💬", color: C.coral, title: "Bro, my landlord just messaged. Rent up again.", body: "Third time this year." },
-      { from: "VOSTON TIMES", icon: "📰", color: C.purple, title: "Food prices jump again across Great Voston", body: "Grocery basket up 6% this month." },
+      { from: "VOSTAN TIMES", icon: "📰", color: C.purple, title: "Food prices jump again across Great Vostan", body: "Grocery basket up 6% this month." },
       { from: "AMARA", icon: "💬", color: C.bMarket, title: "Hi love, can I get a price on this oil?", body: "Suppliers won't talk. Everything's moving." },
       { from: "VARNGRAM", icon: "📱", color: C.rose, title: "@finance_bro_22 just posted", body: "\"This is why everyone should be buying gold rn 🚀\"" },
       { from: "BANK ALERT", icon: "💰", color: C.gold, title: "Your savings earned ₺1.20 in interest", body: "Set up auto-save to grow it faster." },
@@ -7710,7 +7710,7 @@ export default function App() {
         {state.montageActive && <ConsequenceMontage state={state} dispatch={dispatch} />}
         {state.sleepAnim > 0 && <SleepAnimation state={state} dispatch={dispatch} />}
         {state.openPanel === "reserve-locked" && (
-          <PanelShell title="Locked until Tuesday" sub="The Bank of Voston" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
+          <PanelShell title="Locked until Tuesday" sub="The Bank of Vostan" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
             <p style={{ fontSize: 14, color: C.text, lineHeight: 1.65, marginTop: 0, marginBottom: 14 }}>The security guard checks her clipboard. <em>"You don't start until tomorrow. Get some rest. Sort your own affairs out. Walk the city if you like — you'll be making decisions for it soon enough."</em></p>
             <div style={{ background: `${C.gold}15`, padding: "12px 14px", borderLeft: `3px solid ${C.gold}`, borderRadius: 4, fontSize: 13, color: C.text, lineHeight: 1.55 }}>
               <strong style={{ color: C.gold }}>Today's job:</strong> live your own financial life. Try the Bank's <em>Future You</em> game. Try the Stock Exchange. Talk to people on the street. Sleep when you've done three things.
@@ -7718,7 +7718,7 @@ export default function App() {
           </PanelShell>
         )}
         {state.openPanel === "reserve" && !state.meetingActive && state.briefingDone && (
-          <PanelShell title="Bank of Voston · Floor 8" sub="After the meeting" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
+          <PanelShell title="Bank of Vostan · Floor 8" sub="After the meeting" onClose={() => dispatch({ type: "CLOSE_PANEL" })} accent={C.gold}>
             <p style={{ color: C.text }}>The committee's gone home. The decision is made. The rate is <strong>{pct(state.interestRate)}</strong>. You should walk the city and see how it's landing.</p>
           </PanelShell>
         )}
