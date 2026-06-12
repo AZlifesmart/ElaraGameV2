@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useReducer, useRef, useCallback, useMemo } from "react";
 
 /* ============================================================
-   GREAT VOSTAN · v25 · Bank of Vostan Edition · BoE prototype
+   GREAT VOSTAN · v26 · The Learning Economy · BoE prototype
    ============================================================ */
 
 // ─── DESIGN TOKENS (BoE palette + warm parchment twist) ────
@@ -63,6 +63,193 @@ const FONT_H = "'Caveat', cursive";
 const fmt = (n) => `₺${Math.round(n).toLocaleString("en-GB")}`;
 const fmtD = (n) => `₺${n.toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`;
 const pct = (n) => `${n.toFixed(1)}%`;
+
+/* ════════════════════════════════════════════════════════════
+   v26 SYSTEMS · sound · glossary · badges · reflection
+   ════════════════════════════════════════════════════════════ */
+
+// ─── SOUND ENGINE — tiny WebAudio synth, zero assets ────────
+const SFX = (() => {
+  let ctx = null;
+  let muted = true;
+  try { muted = window.localStorage?.getItem("gv_muted") !== "0"; } catch (e) {}
+  const ac = () => {
+    if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    return ctx;
+  };
+  const tone = (freq, dur, type = "sine", vol = 0.07, slide = 0) => {
+    if (muted) return;
+    const c = ac(); if (!c) return;
+    try {
+      const o = c.createOscillator(); const g = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, c.currentTime);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), c.currentTime + dur);
+      g.gain.setValueAtTime(vol, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + dur + 0.02);
+    } catch (e) {}
+  };
+  return {
+    isMuted: () => muted,
+    setMuted: (m) => { muted = m; try { window.localStorage?.setItem("gv_muted", m ? "1" : "0"); } catch (e) {} },
+    click: () => tone(640, 0.05, "triangle", 0.04),
+    coin: () => { tone(880, 0.07, "square", 0.035); setTimeout(() => tone(1318, 0.1, "square", 0.035), 60); },
+    win: () => { tone(523, 0.12, "triangle", 0.06); setTimeout(() => tone(659, 0.12, "triangle", 0.06), 110); setTimeout(() => tone(784, 0.24, "triangle", 0.07), 220); },
+    lose: () => { tone(311, 0.16, "sawtooth", 0.04); setTimeout(() => tone(208, 0.3, "sawtooth", 0.04), 140); },
+    badge: () => { tone(659, 0.1, "triangle", 0.06); setTimeout(() => tone(880, 0.1, "triangle", 0.06), 90); setTimeout(() => tone(1047, 0.28, "triangle", 0.07), 180); },
+    tick: () => tone(440, 0.035, "square", 0.02),
+    alarm: () => tone(760, 0.18, "sawtooth", 0.045, -340),
+    stamp: () => tone(170, 0.12, "square", 0.06, -70),
+  };
+})();
+
+// ─── GLOSSARY — hover any underlined term for a definition ──
+const GLOSSARY = {
+  "compound interest": "Your money earning money on the money it already earned. Tiny at first. Enormous over decades.",
+  "inflation": "Prices rising over time, which quietly shrinks what each Marka buys. Invisible until you look back.",
+  "interest rate": "The price of borrowing and the reward for saving. The Reserve's main lever over the whole economy.",
+  "APR": "Annual Percentage Rate — the true yearly cost of borrowing, with interest and fees included.",
+  "emergency fund": "Money set aside for shocks. Three months of essential costs is the resilience line.",
+  "bonds": "Loans to governments or companies. Steadier than stocks, smaller long-run returns.",
+  "stocks": "Tiny slices of companies. Bumpy in the short run. Historically the strongest long-run growth.",
+  "volatility": "How wildly a price swings. A rougher ride is not always a worse destination.",
+  "minimum payment": "The smallest amount a lender will accept each month. It is designed to keep you borrowing for as long as possible.",
+  "phishing": "Fake messages posing as a trusted organisation, built to steal your details or your money.",
+  "real terms": "What money is worth after inflation is removed. The number that actually matters.",
+  "50/30/20": "A budgeting rule of thumb: 50% needs, 30% wants, 20% saving and paying down debt.",
+};
+
+function Term({ k, children, light }) {
+  const [show, setShow] = useState(false);
+  const def = GLOSSARY[k];
+  if (!def) return <>{children || k}</>;
+  return (
+    <span onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
+      style={{ position: "relative", borderBottom: `2px dotted ${light ? C.gold : C.coral}`, cursor: "help", whiteSpace: "nowrap" }}>
+      {children || k}
+      {show && (
+        <span style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+          background: C.ink, color: C.textCream, padding: "10px 14px", borderRadius: 5, width: 260,
+          fontFamily: FONT_B, fontSize: 11.5, lineHeight: 1.5, fontWeight: 500, fontStyle: "normal",
+          letterSpacing: "0.01em", textAlign: "left", whiteSpace: "normal", zIndex: 200,
+          boxShadow: "0 14px 40px rgba(0,0,0,0.5)", border: `1.5px solid ${C.gold}`, pointerEvents: "none",
+        }}>
+          <span style={{ display: "block", fontFamily: FONT_M, fontSize: 8.5, color: C.gold, letterSpacing: "0.26em", fontWeight: 800, marginBottom: 4, textTransform: "uppercase" }}>● {k}</span>
+          {def}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// ─── ACHIEVEMENT BADGES ─────────────────────────────────────
+const BADGES = {
+  scamSpotter:     { icon: "🕵", name: "Scam Spotter",     desc: "Caught 5 or more scams in the Scam Lab",            color: C.coral },
+  debtDestroyer:   { icon: "⛓", name: "Debt Destroyer",   desc: "Saw through the Minimum Payment Trap",              color: C.purple },
+  bufferBuilder:   { icon: "🛡", name: "Buffer Builder",   desc: "Built a 3-month emergency fund for a neighbour",    color: C.teal },
+  compoundConvert: { icon: "📈", name: "Compound Convert", desc: "Aced the Compound Race knowledge check",            color: C.gold },
+  needsKnower:     { icon: "🧺", name: "Needs Knower",     desc: "Perfect score sorting needs from wants",            color: C.blue },
+  reflector:       { icon: "🪞", name: "Money Mirror",     desc: "Took a lesson home from four different tools",      color: C.rose },
+};
+
+// ─── TAKE THIS HOME — one-tap reflection after each tool ────
+// Research note: a single "what will you do differently?" prompt
+// is the strongest known driver of real-world behaviour change
+// from financial literacy games.
+function TakeThisHome({ game, options, dispatch, accent = C.teal }) {
+  const [picked, setPicked] = useState(null);
+  return (
+    <div style={{ marginTop: 14, padding: "14px 18px", background: C.surface2, borderRadius: 5, border: `1.5px solid ${C.borderCream}` }}>
+      <div style={{ fontFamily: FONT_M, fontSize: 9, color: accent, letterSpacing: "0.26em", fontWeight: 800 }}>🪞 TAKE THIS HOME</div>
+      <div style={{ fontFamily: FONT_D, fontSize: 14, color: C.ink, fontWeight: 700, marginTop: 4, marginBottom: 10 }}>With your real money, this month, what would you actually do?</div>
+      {picked === null ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {options.map((o, i) => (
+            <button key={i} onClick={() => { setPicked(i); SFX.coin(); dispatch({ type: "REFLECT", game, text: o }); }} style={{
+              background: "#fff", border: `1.5px solid ${C.borderCream}`, borderRadius: 4, padding: "9px 14px",
+              textAlign: "left", cursor: "pointer", fontFamily: FONT_B, fontSize: 12, color: C.text, fontWeight: 600,
+              transition: "all 0.15s",
+            }} onMouseOver={(e) => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.transform = "translateX(4px)"; }}
+               onMouseOut={(e) => { e.currentTarget.style.borderColor = C.borderCream; e.currentTarget.style.transform = "translateX(0)"; }}>
+              {o}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="popupIn" style={{ background: `${accent}18`, border: `1.5px solid ${accent}`, borderRadius: 4, padding: "10px 14px", fontFamily: FONT_B, fontSize: 12, color: C.ink, fontWeight: 700 }}>
+          ✓ Noted in your journal: <em>"{options[picked]}"</em> <span style={{ fontFamily: FONT_M, fontSize: 9, color: accent, fontWeight: 800, marginLeft: 6 }}>+20 XP</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── KNOWLEDGE CHECK — one sharp question, no punishment ────
+function KnowledgeCheck({ question, options, correctIndex, onCorrect, accent = C.gold }) {
+  const [answered, setAnswered] = useState(null);
+  const gotIt = answered === correctIndex;
+  return (
+    <div style={{ marginTop: 14, padding: "14px 18px", background: answered === null ? C.surface2 : gotIt ? `${C.teal}14` : `${C.coral}10`, borderRadius: 5, border: `1.5px solid ${answered === null ? C.borderCream : gotIt ? C.teal : C.coral}`, transition: "all 0.3s" }}>
+      <div style={{ fontFamily: FONT_M, fontSize: 9, color: accent, letterSpacing: "0.26em", fontWeight: 800 }}>🧠 QUICK CHECK · +40 XP</div>
+      <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.ink, fontWeight: 800, marginTop: 4, marginBottom: 10, lineHeight: 1.3 }}>{question}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {options.map((o, i) => {
+          const isCorrect = i === correctIndex;
+          const isPicked = answered === i;
+          return (
+            <button key={i} disabled={answered !== null} onClick={() => {
+              setAnswered(i);
+              if (isCorrect) { SFX.win(); onCorrect && onCorrect(); } else { SFX.lose(); }
+            }} style={{
+              background: answered === null ? "#fff" : isCorrect ? C.teal : isPicked ? `${C.coral}22` : "#fff",
+              color: answered !== null && isCorrect ? "#fff" : C.text,
+              border: `1.5px solid ${answered === null ? C.borderCream : isCorrect ? C.teal : isPicked ? C.coral : C.borderCream}`,
+              borderRadius: 4, padding: "9px 14px", textAlign: "left",
+              cursor: answered === null ? "pointer" : "default",
+              fontFamily: FONT_B, fontSize: 12, fontWeight: 600, transition: "all 0.2s",
+            }}>
+              {answered !== null && isCorrect ? "✓ " : answered !== null && isPicked ? "✗ " : ""}{o}
+            </button>
+          );
+        })}
+      </div>
+      {answered !== null && (
+        <div className="popupIn" style={{ fontFamily: FONT_B, fontSize: 11.5, color: C.textMuted, marginTop: 8, fontStyle: "italic", lineHeight: 1.4 }}>
+          {gotIt ? "Exactly. That instinct is the whole lesson." : `The answer is "${options[correctIndex]}" — worth sitting with for a second.`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DID YOU KNOW — real-world grounding between tools ──────
+const DID_YOU_KNOW = [
+  "Households with a three-month emergency fund are far less likely to fall into long-term debt after a shock.",
+  "Most people underestimate compound growth — over 40 years, the growth usually ends up bigger than everything you put in.",
+  "Paying only the minimum on a credit card can take well over a decade to clear and double what you repay.",
+  "Fraud is now one of the most common crimes in most advanced economies — and anyone, any age, can be caught by it.",
+  "Money worries are one of the biggest reported causes of stress and lost sleep — a buffer buys peace, not just safety.",
+  "The earlier you start saving, the less of your own money you need — time does the heavy lifting.",
+];
+
+function DidYouKnow() {
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * DID_YOU_KNOW.length));
+  useEffect(() => {
+    const t = setInterval(() => setIdx(i => (i + 1) % DID_YOU_KNOW.length), 7000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div style={{ maxWidth: 820, width: "100%", background: "rgba(4,6,15,0.72)", border: `1px solid ${C.gold}44`, borderRadius: 4, padding: "10px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ fontFamily: FONT_M, fontSize: 8.5, color: C.gold, letterSpacing: "0.26em", fontWeight: 800, whiteSpace: "nowrap" }}>💡 DID YOU KNOW</div>
+      <div key={idx} className="popupIn" style={{ fontFamily: FONT_B, fontSize: 12, color: C.textCream, lineHeight: 1.45, fontWeight: 500 }}>{DID_YOU_KNOW[idx]}</div>
+    </div>
+  );
+}
+
+
 
 // ─── WORLD LAYOUT (continuous hillside city) ───────────────
 const WORLD_W = 4800;
@@ -169,6 +356,7 @@ const initialState = {
   // Life meters - the emotional spine
   stress: 30, happiness: 60, energy: 80,
   xp: 0, level: 1,
+  badges: [], reflections: [],
   activeQuest: "q1",
   completedQuests: [],
   notes: [],
@@ -416,7 +604,29 @@ function reducer(s, a) {
     case "THOUGHT": return { ...s, thought: a.text };
     case "DISMISS_THOUGHT": return { ...s, thought: null };
     case "DISMISS_POPUP": return { ...s, popups: s.popups.filter((p) => p.id !== a.id) };
-    case "RESET": return initialState;
+    case "AWARD_BADGE": {
+      if ((s.badges || []).includes(a.id)) return s;
+      const b = BADGES[a.id]; if (!b) return s;
+      SFX.badge();
+      const next = { ...s, badges: [...(s.badges || []), a.id], xp: s.xp + 40 };
+      return addPopup(next, { type: "badge", text: `${b.icon} Badge earned · ${b.name}`, sub: b.desc });
+    }
+    case "REFLECT": {
+      let next = { ...s, reflections: [...(s.reflections || []), { game: a.game, text: a.text }], xp: s.xp + 20 };
+      next = addPopup(next, { type: "note", text: "🪞 Taken home", sub: a.text });
+      const distinctGames = new Set(next.reflections.map((r) => r.game));
+      if (distinctGames.size >= 4 && !(next.badges || []).includes("reflector")) {
+        SFX.badge();
+        next = { ...next, badges: [...(next.badges || []), "reflector"], xp: next.xp + 40 };
+        next = addPopup(next, { type: "badge", text: `🪞 Badge earned · ${BADGES.reflector.name}`, sub: BADGES.reflector.desc });
+      }
+      return next;
+    }
+    case "LOAD_STATE": return { ...initialState, ...a.saved, popups: [], notifications: [], target: null, moving: false };
+    case "RESET": {
+      try { window.localStorage?.removeItem("gv_save_v26"); } catch (e) {}
+      return initialState;
+    }
     default: return s;
   }
 }
@@ -2284,7 +2494,7 @@ function MeetingRoom({ state, dispatch }) {
 
       {/* Bottom letterbox bar */}
       <div style={{ background: "#000", height: 36, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 28px" }}>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v25</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE v26</div>
         <div style={{ display: "flex", gap: 5 }}>
           {["briefing","rate","rateReaction","hub","outcome"].map((p, i) => (
             <div key={p} style={{ width: 28, height: 3, background: p === phase ? C.coral : state.completedMeetingPhases?.includes(p) ? C.gold : "rgba(255,255,255,0.15)", borderRadius: 1 }} />
@@ -3432,6 +3642,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
   const [shocks, setShocks] = useState([]);
   const [timeline, setTimeline] = useState([{ month: 0, emergency: 0, debtBal: 0, stress: 50, happiness: 50 }]);
   const [running, setRunning] = useState(false);
+  const [sortAnswers, setSortAnswers] = useState({}); // needs-vs-wants warm-up drill
 
   const NEIGHBOURS = {
     yusuf: { name: "Yusuf", role: "Family of 4 · Mortgage stress", income: 3200, startDebt: 1200, fixedNeeds: 1700, color: C.coral, icon: "👨‍👩‍👧‍👦",
@@ -3462,7 +3673,13 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
   // Simulation tick — 12 months at ~600ms/month
   useEffect(() => {
     if (!running || phase !== "simulate") return;
-    if (month >= 12) { setRunning(false); setPhase("result"); return; }
+    if (month >= 12) {
+      setRunning(false);
+      if (emergency / picked.fixedNeeds >= 3) dispatch({ type: "AWARD_BADGE", id: "bufferBuilder" });
+      SFX.win();
+      setPhase("result");
+      return;
+    }
     const t = setTimeout(() => {
       const monthlyIncome = picked.income;
       const toNeeds = monthlyIncome * alloc.needs / 100;
@@ -3555,7 +3772,7 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 18, maxWidth: 1100, width: "100%" }}>
             {Object.entries(NEIGHBOURS).map(([id, n]) => (
-              <button key={id} onClick={() => { setPickedId(id); setDebtBal(n.startDebt); setEmergency(0); setMonth(0); setShocks([]); setStress(50); setHappiness(50); setTimeline([{ month: 0, emergency: 0, debtBal: n.startDebt, stress: 50, happiness: 50 }]); setPhase("allocate"); }} className="popupIn" style={{
+              <button key={id} onClick={() => { setPickedId(id); setDebtBal(n.startDebt); setEmergency(0); setMonth(0); setShocks([]); setStress(50); setHappiness(50); setTimeline([{ month: 0, emergency: 0, debtBal: n.startDebt, stress: 50, happiness: 50 }]); setSortAnswers({}); setPhase("sort"); }} className="popupIn" style={{
                 background: "rgba(255,248,238,0.97)", border: `2px solid ${n.color}`, borderRadius: 6,
                 padding: "24px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
                 boxShadow: `0 14px 40px ${n.color}55`,
@@ -3573,6 +3790,78 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── PHASE: SORT — needs vs wants warm-up (v26) ──────
+  // Research: this 30-second drill is the prerequisite skill for
+  // budgeting — most teenagers cannot do it consistently.
+  if (phase === "sort") {
+    const ITEMS = [
+      { id: "rent",     label: "Rent",                icon: "🏠", need: true },
+      { id: "food",     label: "Weekly food shop",    icon: "🛒", need: true },
+      { id: "stream",   label: "Streaming subscription", icon: "📺", need: false },
+      { id: "bus",      label: "Bus pass to work",    icon: "🚌", need: true },
+      { id: "trainers", label: "New trainers",        icon: "👟", need: false },
+      { id: "elec",     label: "Electricity bill",    icon: "💡", need: true },
+      { id: "takeaway", label: "Friday takeaway",     icon: "🍕", need: false },
+      { id: "phone",    label: "Basic phone contract", icon: "📱", need: true },
+    ];
+    const answeredCount = Object.keys(sortAnswers).length;
+    const correctCount = ITEMS.filter(it => sortAnswers[it.id] === it.need).length;
+    const allDone = answeredCount === ITEMS.length;
+    return (
+      <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+        <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: picked.color, animation: "pulse 1.4s infinite" }} />
+            <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>WARM-UP · NEEDS vs WANTS</div>
+          </div>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>{answeredCount} OF {ITEMS.length} SORTED</div>
+        </div>
+        <div style={{ flex: 1, background: `linear-gradient(180deg, #04060f 0%, #0a1230 50%, #1a2454 100%)`, padding: 26, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, overflow: "auto" }}>
+          <div style={{ textAlign: "center", maxWidth: 760 }}>
+            <div style={{ fontFamily: FONT_D, fontSize: 36, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1 }}>Before you touch {picked.name}'s money…</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.gold, fontWeight: 600, fontStyle: "italic", marginTop: 8 }}>A need keeps life running. A want makes life nicer. Budgets fail when the two get confused. Sort these eight.</div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, maxWidth: 940, width: "100%" }}>
+            {ITEMS.map((it) => {
+              const ans = sortAnswers[it.id];
+              const answered = ans !== undefined;
+              const correct = answered && ans === it.need;
+              return (
+                <div key={it.id} className="popupIn" style={{ background: "rgba(255,248,238,0.97)", borderRadius: 6, padding: "14px 14px", border: `2px solid ${!answered ? C.borderCream : correct ? C.teal : C.coral}`, transition: "border 0.25s" }}>
+                  <div style={{ fontSize: 26, textAlign: "center" }}>{it.icon}</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 14, color: C.ink, fontWeight: 800, textAlign: "center", lineHeight: 1.15, marginTop: 4, minHeight: 32 }}>{it.label}</div>
+                  {!answered ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+                      <button onClick={() => { setSortAnswers(a => ({ ...a, [it.id]: true })); if (it.need) SFX.coin(); else SFX.lose(); }} style={{ background: C.teal, color: "#fff", border: "none", padding: "8px 4px", fontFamily: FONT_M, fontSize: 9, fontWeight: 800, letterSpacing: "0.14em", cursor: "pointer", borderRadius: 3 }}>NEED</button>
+                      <button onClick={() => { setSortAnswers(a => ({ ...a, [it.id]: false })); if (!it.need) SFX.coin(); else SFX.lose(); }} style={{ background: C.rose, color: "#fff", border: "none", padding: "8px 4px", fontFamily: FONT_M, fontSize: 9, fontWeight: 800, letterSpacing: "0.14em", cursor: "pointer", borderRadius: 3 }}>WANT</button>
+                    </div>
+                  ) : (
+                    <div className="popupIn" style={{ marginTop: 8, textAlign: "center", fontFamily: FONT_M, fontSize: 9.5, fontWeight: 800, letterSpacing: "0.1em", color: correct ? C.teal : C.coral }}>
+                      {correct ? "✓ " : "✗ "}{it.need ? "A NEED" : "A WANT"}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {allDone && (
+            <div className="popupIn" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ fontFamily: FONT_D, fontSize: 19, color: correctCount === ITEMS.length ? C.teal : C.gold, fontWeight: 800, fontStyle: "italic" }}>
+                {correctCount === ITEMS.length ? "Perfect. Eight from eight — your instincts are sharp." : `${correctCount} of ${ITEMS.length}. Worth a second look at the ones in red.`}
+              </div>
+              <button onClick={() => { if (correctCount === ITEMS.length) dispatch({ type: "AWARD_BADGE", id: "needsKnower" }); SFX.click(); setPhase("allocate"); }} style={{ background: picked.color, color: "#fff", border: "none", padding: "15px 44px", fontFamily: FONT_M, fontSize: 12, fontWeight: 800, letterSpacing: "0.26em", cursor: "pointer", borderRadius: 3, boxShadow: `0 14px 36px ${picked.color}88` }}>
+                NOW BUILD THE BUDGET →
+              </button>
+            </div>
+          )}
+        </div>
+        <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>NEEDS FIRST · WANTS AFTER · ALWAYS</div>
         </div>
       </div>
     );
@@ -3617,6 +3906,16 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
                 <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, lineHeight: 1 }}>{picked.name}'s monthly</div>
                 <div style={{ fontFamily: FONT_M, fontSize: 10, color: picked.color, letterSpacing: "0.2em", fontWeight: 800, marginTop: 4 }}>INCOME ₺{monthly.toLocaleString()} · FIXED NEEDS ₺{picked.fixedNeeds.toLocaleString()}</div>
               </div>
+            </div>
+
+            {/* 50/30/20 — show the rule of thumb, let it snap (v26) */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, padding: "10px 14px", background: `${C.gold}14`, border: `1.5px solid ${C.gold}88`, borderRadius: 5 }}>
+              <div style={{ fontFamily: FONT_B, fontSize: 11.5, color: C.text, lineHeight: 1.45 }}>
+                <strong>The <Term k="50/30/20">50/30/20 rule</Term>:</strong> 50% needs, 30% life, 20% saving and debt. A starting point, not a law — {picked.name}'s fixed costs may demand more.
+              </div>
+              <button onClick={() => { SFX.coin(); setAlloc(picked.startDebt > 0 ? { needs: 50, debt: 10, save: 10, life: 30 } : { needs: 50, debt: 0, save: 20, life: 30 }); }} style={{ background: C.gold, color: C.ink, border: "none", padding: "10px 16px", fontFamily: FONT_M, fontSize: 9.5, fontWeight: 800, letterSpacing: "0.18em", cursor: "pointer", borderRadius: 3, whiteSpace: "nowrap", flexShrink: 0 }}>
+                SNAP TO 50/30/20
+              </button>
             </div>
 
             <BudgetSlider label="NEEDS" sub="Rent · food · bills · utilities" icon="🏠"
@@ -3978,6 +4277,29 @@ function BudgetHealthCheck({ state, dispatch, onBack }) {
             </div>
           </div>
 
+          {/* WHAT HAPPENED, AND WHY — specific to this run (v26) */}
+          <div style={{ background: "rgba(255,248,238,0.95)", borderRadius: 6, padding: "16px 20px" }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.blue, letterSpacing: "0.28em", fontWeight: 800, marginBottom: 8 }}>● WHAT HAPPENED, AND WHY</div>
+            <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.6 }}>
+              {(() => {
+                const lines = [];
+                const costShocks = shocks.filter(sh => sh.cost > 0);
+                if (!needsMet) lines.push(`You allocated ₺${Math.round(picked.income * alloc.needs / 100).toLocaleString()} to needs against fixed costs of ₺${picked.fixedNeeds.toLocaleString()} — the gap fed stress every single month.`);
+                if (debtBal > picked.startDebt) lines.push(`The emergency jar could not absorb ${costShocks.length === 1 ? "the shock" : "the shocks"}, so the shortfall became new debt at a penalty rate. That is the trap a buffer exists to prevent.`);
+                else if (costShocks.length > 0 && monthsCovered >= 1) lines.push(`${costShocks.length === 1 ? "One shock" : `${costShocks.length} shocks`} hit, and the emergency jar absorbed ${debtBal <= picked.startDebt ? "them without new borrowing" : "most of it"} — that is exactly what it is for.`);
+                if (costShocks.length === 0) lines.push("No costly shocks landed this year. A kind year — but the buffer you built is what makes the unkind years survivable.");
+                if (alloc.life * picked.income / 100 < 50) lines.push("Almost nothing went to life. Budgets that feel like punishment get abandoned — joy is a line item, not a luxury.");
+                if (lines.length === 0) lines.push("A balanced plan met a normal year: needs covered, buffer growing, debt falling, life funded. This is what boring, brilliant budgeting looks like.");
+                return lines.slice(0, 3).map((l, i) => <div key={i} style={{ marginBottom: 6 }}>◦ {l}</div>);
+              })()}
+            </div>
+            <TakeThisHome game="budget" accent={C.teal} dispatch={dispatch} options={[
+              "Write down my real fixed costs — the honest number",
+              "Open a separate space for an emergency fund, even ₺10/week",
+              "Try 50/30/20 against my own income this month",
+            ]} />
+          </div>
+
           <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
             <button onClick={() => { setPickedId(null); setPhase("pick"); setAlloc({ needs: 55, debt: 15, save: 15, life: 15 }); }} style={{ flex: 1, background: "transparent", color: C.textCream, border: `1px solid ${C.borderL}`, padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>HELP ANOTHER →</button>
             <button onClick={onBack} style={{ flex: 1, background: C.coral, color: "#fff", border: "none", padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>DONE</button>
@@ -4136,6 +4458,7 @@ function CompoundRace({ state, dispatch, onBack }) {
   const [history, setHistory] = useState([{ year: 0, mattress: 500, safe: 500, growth: 500 }]);
   const [events, setEvents] = useState([]);
   const [running, setRunning] = useState(false);
+  const [lateGrowth, setLateGrowth] = useState(0); // ghost runner — same habit, started 10 years late
 
   // Generate a deterministic-ish event schedule per game
   const eventSchedule = useMemo(() => {
@@ -4165,7 +4488,7 @@ function CompoundRace({ state, dispatch, onBack }) {
   // Race tick
   useEffect(() => {
     if (!running || phase !== "racing") return;
-    if (year >= 40) { setRunning(false); setPhase("result"); return; }
+    if (year >= 40) { setRunning(false); SFX.win(); setPhase("result"); return; }
     const t = setTimeout(() => {
       // Returns (real, after inflation)
       let mattressRet = -0.018; // cash loses to inflation by ~1.8% real
@@ -4185,15 +4508,18 @@ function CompoundRace({ state, dispatch, onBack }) {
       const newMattress = Math.max(0, mattress * (1 + mattressRet) + annualContrib);
       const newSafe = Math.max(0, safe * (1 + safeRet) + annualContrib);
       const newGrowth = Math.max(0, growth * (1 + growthRet) + annualContrib);
+      // Ghost runner — identical Growth strategy, but starts at year 10
+      const newLate = (year + 1) < 10 ? 0 : (year + 1) === 10 ? 500 + annualContrib : Math.max(0, lateGrowth * (1 + growthRet) + annualContrib);
 
       setMattress(newMattress);
       setSafe(newSafe);
       setGrowth(newGrowth);
+      setLateGrowth(newLate);
       setHistory(h => [...h, { year: year + 1, mattress: newMattress, safe: newSafe, growth: newGrowth }]);
       setYear(y => y + 1);
     }, 240);
     return () => clearTimeout(t);
-  }, [running, year, phase, mattress, safe, growth, monthly, eventSchedule]);
+  }, [running, year, phase, mattress, safe, growth, monthly, eventSchedule, lateGrowth]);
 
   const formatMoney = (n) => {
     if (n >= 1000000) return `₺${(n / 1000000).toFixed(2)}m`;
@@ -4244,7 +4570,7 @@ function CompoundRace({ state, dispatch, onBack }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <button onClick={onBack} style={{ background: "transparent", color: C.textMuted, border: `1px solid ${C.borderCream}`, padding: "14px 24px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
               <button onClick={() => {
-                setMattress(500); setSafe(500); setGrowth(500); setYear(0); setEvents([]); setHistory([{ year: 0, mattress: 500, safe: 500, growth: 500 }]);
+                setMattress(500); setSafe(500); setGrowth(500); setLateGrowth(0); setYear(0); setEvents([]); setHistory([{ year: 0, mattress: 500, safe: 500, growth: 500 }]);
                 setPhase("racing"); setRunning(true);
               }} style={{ background: C.gold, color: "#0a0f24", border: "none", padding: "16px 42px", fontFamily: FONT_M, fontSize: 13, fontWeight: 800, letterSpacing: "0.28em", cursor: "pointer", borderRadius: 3, boxShadow: `0 14px 36px ${C.gold}88` }}>
                 START THE RACE 🏁
@@ -4343,6 +4669,12 @@ function CompoundRace({ state, dispatch, onBack }) {
                       {/* Subtle horizontal lines = "coin layers" */}
                       <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(0deg, transparent 0, transparent 6px, rgba(255,255,255,0.08) 6px, rgba(255,255,255,0.08) 7px)` }} />
                     </div>
+                    {/* Late-start ghost marker — same habit, started year 10 */}
+                    {lane.id === "growth" && lateGrowth > 0 && (
+                      <div style={{ position: "absolute", bottom: `${Math.min(98, (lateGrowth / maxVal) * 100)}%`, left: 0, right: 0, borderTop: `2.5px dashed ${C.textCream}`, opacity: 0.8, zIndex: 3, transition: "bottom 0.45s cubic-bezier(0.34, 1.2, 0.5, 1)" }}>
+                        <div style={{ position: "absolute", top: 3, right: 6, fontFamily: FONT_M, fontSize: 8, color: C.textCream, letterSpacing: "0.14em", fontWeight: 800, background: "rgba(0,0,0,0.5)", padding: "2px 6px", borderRadius: 2, whiteSpace: "nowrap" }}>LATE START · {formatMoney(lateGrowth)}</div>
+                      </div>
+                    )}
                     {/* Current value over the bar */}
                     <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", zIndex: 2 }}>
                       <div style={{ fontFamily: FONT_M, fontSize: 9, color: pct > 30 ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.22em", fontWeight: 700 }}>NOW WORTH</div>
@@ -4388,9 +4720,9 @@ function CompoundRace({ state, dispatch, onBack }) {
           return (
             <div className="popupIn" style={{
               position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
-              background: "rgba(255,248,238,0.98)", padding: "28px 38px", borderRadius: 10,
+              background: "rgba(255,248,238,0.98)", padding: "26px 36px", borderRadius: 10,
               maxWidth: 720, width: "92%", border: `3px solid ${winner.color}`, zIndex: 10,
-              boxShadow: `0 40px 100px rgba(0,0,0,0.7)`,
+              boxShadow: `0 40px 100px rgba(0,0,0,0.7)`, maxHeight: "88%", overflowY: "auto",
             }}>
               <div style={{ fontFamily: FONT_M, fontSize: 11, color: winner.color, letterSpacing: "0.32em", fontWeight: 800 }}>● 40 YEARS LATER · WINNER</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginTop: 6 }}>
@@ -4432,6 +4764,41 @@ function CompoundRace({ state, dispatch, onBack }) {
                 </div>
               </div>
 
+              {/* THE COST OF WAITING — the lesson people refuse to believe until they see it */}
+              {lateGrowth > 0 && (
+                <div style={{ marginTop: 14, padding: "14px 18px", background: `${C.coral}10`, borderLeft: `4px solid ${C.coral}`, borderRadius: 4 }}>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.22em", fontWeight: 800 }}>⏳ THE COST OF WAITING</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 4 }}>
+                    <div style={{ fontFamily: FONT_D, fontSize: 30, color: C.coral, fontWeight: 900 }}>−{formatMoney(Math.max(0, growth - lateGrowth))}</div>
+                    <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, fontWeight: 600 }}>for starting the same habit ten years late</div>
+                  </div>
+                  <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.textMuted, lineHeight: 1.45, marginTop: 4, fontStyle: "italic" }}>
+                    The dashed line in the Growth lane was you, starting at year 10 with the exact same ₺{monthly}/month. Same discipline, same markets — {formatMoney(lateGrowth)} instead of {formatMoney(growth)}. Time is the one ingredient you cannot buy back.
+                  </div>
+                </div>
+              )}
+
+              <div style={{ marginTop: 10, fontFamily: FONT_M, fontSize: 9.5, color: C.textMuted, letterSpacing: "0.1em", lineHeight: 1.5 }}>
+                ◦ All figures are in today's money — <Term k="inflation">inflation</Term> is already stripped out. That is why the Mattress shrinks even though no one touched it.
+              </div>
+
+              <KnowledgeCheck
+                question="Three crashes hit Growth on the way. Why did it usually still come out ahead?"
+                options={[
+                  "It recovered after each crash and kept compounding in between",
+                  "Crashes do not really affect stock investments",
+                  "The Reserve refunds investors after every crash",
+                ]}
+                correctIndex={0}
+                onCorrect={() => { dispatch({ type: "AWARD_BADGE", id: "compoundConvert" }); }}
+              />
+
+              <TakeThisHome game="race" accent={C.gold} dispatch={dispatch} options={[
+                "Set up a small automatic monthly transfer — even ₺25 — this week",
+                "Check whether my savings are at least beating inflation",
+                "Stop checking investments daily; judge them in years, not weeks",
+              ]} />
+
               <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
                 <button onClick={() => { setPhase("setup"); setRunning(false); }} style={{ flex: 1, background: "transparent", color: C.text, border: `1.5px solid ${C.borderCream}`, padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>RACE AGAIN →</button>
                 <button onClick={onBack} style={{ flex: 1, background: C.coral, color: "#fff", border: "none", padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>DONE</button>
@@ -4462,15 +4829,38 @@ function StrategyPreview({ color, icon, name, desc }) {
 }
 
 function BankPanel({ state, dispatch }) {
-  // Three mini-games available at the Savings Bank
-  const [mode, setMode] = useState(null); // null | "future" | "budget" | "race"
+  // Five mini-games available at the Savings Bank (v26)
+  const [mode, setMode] = useState(null); // null | "future" | "budget" | "race" | "scam" | "debt"
   if (mode === null) return <BankModeChooser onPick={setMode} dispatch={dispatch} state={state} />;
   if (mode === "budget") return <BudgetHealthCheck dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
   if (mode === "race") return <CompoundRace dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
+  if (mode === "scam") return <ScamLab dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
+  if (mode === "debt") return <DebtTrap dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
   return <FutureYouSim dispatch={dispatch} state={state} onBack={() => setMode(null)} />;
 }
 
-// ─── The two-game chooser at the Savings Bank entrance ─────
+// ─── The five-tool chooser at the Savings Bank entrance ────
+function ToolCard({ onPick, color, icon, eyebrow, title, desc, tags, delay, isNew }) {
+  return (
+    <button onClick={() => { SFX.click(); onPick(); }} style={{
+      background: "rgba(255,248,238,0.97)", border: `2px solid ${color}`, borderRadius: 6,
+      padding: "16px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
+      boxShadow: `0 14px 36px ${color}44`, position: "relative",
+      animation: `popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${delay}s both`,
+      display: "flex", flexDirection: "column",
+    }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-5px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
+      {isNew && <div style={{ position: "absolute", top: 9, right: 9, background: C.coral, color: "#fff", padding: "3px 8px", fontFamily: FONT_M, fontSize: 8, letterSpacing: "0.2em", fontWeight: 800, borderRadius: 2 }}>NEW</div>}
+      <div style={{ fontSize: 28 }}>{icon}</div>
+      <div style={{ fontFamily: FONT_M, fontSize: 8.5, color, letterSpacing: "0.24em", fontWeight: 800, marginTop: 6 }}>● {eyebrow}</div>
+      <div style={{ fontFamily: FONT_D, fontSize: 20, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 5 }}>{title}</div>
+      <div style={{ fontFamily: FONT_B, fontSize: 11, color: C.text, lineHeight: 1.45, marginTop: 7, flex: 1 }}>{desc}</div>
+      <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
+        {tags.map(t => <span key={t} style={{ background: C.surface3, color: C.text, padding: "3px 7px", fontFamily: FONT_M, fontSize: 7.5, letterSpacing: "0.16em", fontWeight: 700, borderRadius: 2 }}>{t}</span>)}
+      </div>
+    </button>
+  );
+}
+
 function BankModeChooser({ onPick, dispatch, state }) {
   const close = () => dispatch({ type: "CLOSE_PANEL" });
   return (
@@ -4483,7 +4873,7 @@ function BankModeChooser({ onPick, dispatch, state }) {
         <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>PICK A TOOL</div>
       </div>
 
-      <div style={{ flex: 1, position: "relative", overflow: "hidden", background: `linear-gradient(180deg, #04060f 0%, #0a1230 35%, #2a1c4a 70%, ${C.skyDawn} 92%, ${C.skyHorizon} 100%)` }}>
+      <div style={{ flex: 1, position: "relative", overflow: "auto", background: `linear-gradient(180deg, #04060f 0%, #0a1230 35%, #2a1c4a 70%, ${C.skyDawn} 92%, ${C.skyHorizon} 100%)` }}>
         <svg viewBox="0 0 1600 800" preserveAspectRatio="xMidYMax slice" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
           <circle cx="1300" cy="200" r="80" fill="#fff8ee" opacity="0.85" />
           <circle cx="1300" cy="200" r="160" fill={C.gold} opacity="0.15" />
@@ -4491,77 +4881,34 @@ function BankModeChooser({ onPick, dispatch, state }) {
           <rect x="0" y="640" width="1600" height="160" fill="#04060f" />
         </svg>
 
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, gap: 22 }}>
-          <div style={{ textAlign: "center", maxWidth: 820, background: "rgba(4,6,15,0.7)", padding: "16px 28px", borderRadius: 4, borderTop: `2px solid ${C.gold}55`, borderBottom: `2px solid ${C.gold}55` }}>
-            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● THREE TOOLS · ONE OUTCOME</div>
-            <div style={{ fontFamily: FONT_D, fontSize: 36, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.05 }}>Strong households build a strong country.</div>
-            <div style={{ fontFamily: FONT_H, fontSize: 16, color: C.gold, fontWeight: 500, marginTop: 8 }}>Plan your future. Help a neighbour. Race three strategies.</div>
+        <div style={{ position: "relative", minHeight: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "26px 30px", gap: 18 }}>
+          <div style={{ textAlign: "center", maxWidth: 860, background: "rgba(4,6,15,0.7)", padding: "14px 28px", borderRadius: 4, borderTop: `2px solid ${C.gold}55`, borderBottom: `2px solid ${C.gold}55` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● FIVE TOOLS · ONE OUTCOME</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 34, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.05 }}>Strong households build a strong country.</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.gold, fontWeight: 600, fontStyle: "italic", marginTop: 7 }}>Plan a future. Help a neighbour. Race three strategies. Spot the scams. Escape the trap.</div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, maxWidth: 1280, width: "100%" }}>
-            {/* Card 1 — Future You */}
-            <button onClick={() => onPick("future")} style={{
-              background: "rgba(255,248,238,0.97)", border: `2px solid ${C.coral}`, borderRadius: 6,
-              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
-              boxShadow: `0 16px 40px ${C.coral}44`,
-              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.0s both",
-            }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-              <div style={{ fontSize: 34 }}>📈</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● PERSONAL · 30 YEARS</div>
-              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Future You</div>
-              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
-                You are 22. Set a savings plan, pick an investment style, then live through 30 years of life events. See where compound, discipline, and luck land you at 52.
-              </div>
-              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>COMPOUND</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>RISK</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>LIFE EVENTS</span>
-              </div>
-            </button>
-
-            {/* Card 2 — Budget Health Check */}
-            <button onClick={() => onPick("budget")} style={{
-              background: "rgba(255,248,238,0.97)", border: `2px solid ${C.teal}`, borderRadius: 6,
-              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
-              boxShadow: `0 16px 40px ${C.teal}44`, position: "relative",
-              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both",
-            }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-              <div style={{ fontSize: 34 }}>🏘</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● A NEIGHBOUR · 12 MONTHS</div>
-              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Budget Health Check</div>
-              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
-                Pick a neighbour from the city. Allocate their monthly income across the four jars. Run a year forward, with shocks. See your plan ripple out into Great Vostan's resilience.
-              </div>
-              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>BUDGET RULES</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>EMERGENCY FUND</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>NATIONAL IMPACT</span>
-              </div>
-            </button>
-
-            {/* Card 3 — Compound Race (NEW) */}
-            <button onClick={() => onPick("race")} style={{
-              background: "rgba(255,248,238,0.97)", border: `2px solid ${C.gold}`, borderRadius: 6,
-              padding: "22px 22px", textAlign: "left", cursor: "pointer", transition: "all 0.2s",
-              boxShadow: `0 16px 40px ${C.gold}44`, position: "relative",
-              animation: "popupIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both",
-            }} onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-4px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>
-              <div style={{ position: "absolute", top: 10, right: 10, background: C.coral, color: "#fff", padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.2em", fontWeight: 800, borderRadius: 2 }}>NEW</div>
-              <div style={{ fontSize: 34 }}>🏁</div>
-              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.28em", fontWeight: 800, marginTop: 6 }}>● THREE STRATEGIES · 40 YEARS</div>
-              <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1, marginTop: 6 }}>Compound Race</div>
-              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.text, lineHeight: 1.45, marginTop: 8 }}>
-                Pick how much you'd save each month. Three strategies race forty years side-by-side: cash under the mattress, safe bonds, and growth. Watch which ends up where.
-              </div>
-              <div style={{ display: "flex", gap: 4, marginTop: 12, flexWrap: "wrap" }}>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>COMPOUND</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>INFLATION</span>
-                <span style={{ background: C.surface3, color: C.text, padding: "3px 8px", fontFamily: FONT_M, fontSize: 8.5, letterSpacing: "0.18em", fontWeight: 700, borderRadius: 2 }}>RISK vs RETURN</span>
-              </div>
-            </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(215px, 1fr))", gap: 13, maxWidth: 1380, width: "100%" }}>
+            <ToolCard onPick={() => onPick("future")} color={C.coral} icon="📈" eyebrow="PERSONAL · 30 YEARS" title="Future You" delay={0}
+              desc="You are 22. Set a savings plan, pick an investment style, then live through 30 years of life events. See where you land at 52."
+              tags={["COMPOUND", "RISK", "LIFE EVENTS"]} />
+            <ToolCard onPick={() => onPick("budget")} color={C.teal} icon="🏘" eyebrow="A NEIGHBOUR · 12 MONTHS" title="Budget Health Check" delay={0.12}
+              desc="Sort needs from wants, then run a neighbour's budget through a year of shocks. Watch one household ripple into the country."
+              tags={["50/30/20", "EMERGENCY FUND", "NATIONAL IMPACT"]} />
+            <ToolCard onPick={() => onPick("race")} color={C.gold} icon="🏁" eyebrow="THREE STRATEGIES · 40 YEARS" title="Compound Race" delay={0.24}
+              desc="Cash under the mattress, safe bonds, and growth race forty years side by side. Now with the cost of starting ten years late."
+              tags={["COMPOUND", "INFLATION", "LATE START"]} />
+            <ToolCard onPick={() => onPick("scam")} color={C.purple} icon="🕵" eyebrow="SIX MESSAGES · 10 SECONDS" title="The Scam Lab" delay={0.36} isNew
+              desc="Real-looking texts, emails and calls land in your inbox. Some are genuine. Some want your money. Trust your gut — fast."
+              tags={["FRAUD", "PHISHING", "STOP · CHALLENGE · PROTECT"]} />
+            <ToolCard onPick={() => onPick("debt")} color={C.rose} icon="🪤" eyebrow="ONE DEBT · THREE WAYS OUT" title="Minimum Payment Trap" delay={0.48} isNew
+              desc="A ₺1,200 credit card debt at 24.9% APR. Three repayment strategies race to freedom. The minimum is not your friend."
+              tags={["CREDIT", "APR", "DEBT"]} />
           </div>
 
-          <button onClick={close} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid ${C.borderL}`, padding: "12px 22px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
+          <DidYouKnow />
+
+          <button onClick={close} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid ${C.borderL}`, padding: "11px 22px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
         </div>
       </div>
 
@@ -4571,6 +4918,670 @@ function BankModeChooser({ onPick, dispatch, state }) {
     </div>
   );
 }
+
+
+/* ════════════════════════════════════════════════════════════
+   THE SCAM LAB — fraud & scam recognition (v26)
+   Six messages. Ten seconds each. Real or rotten?
+   ════════════════════════════════════════════════════════════ */
+const SCAM_SCENARIOS = [
+  {
+    id: "parcel", kind: "sms", from: "VOSTAN POST", genuine: false,
+    body: "Your parcel could not be delivered. A redelivery fee of ₺2.99 is required. Pay now to avoid return: vostan-post.delivery-fee.xyz",
+    flags: ["A surprise fee out of nowhere", "Pressure to act immediately", "The web address is not the real Vostan Post domain"],
+    explain: "Delivery-fee texts are one of the most common scams in the world. The link leads to a fake payment page that harvests your card details.",
+  },
+  {
+    id: "banksec", kind: "email", from: "Bank of Vostan Security <security@bankofvostan-alerts.com>", subject: "URGENT: Your account will be SUSPENDED", genuine: false,
+    body: "Dear customer, we have detected unusual activity. Your account will be suspended within 24 HOURS unless you verify your identity. Click here and confirm your card number, PIN and password.",
+    flags: ["Threats and a countdown — urgency is the scammer's favourite tool", "Asks for PIN and password — your bank never will", "'Dear customer' — they don't know your name", "Sender address is not the bank's real domain"],
+    explain: "Banks never ask for your PIN or full password, by any channel, ever. Real security alerts tell you to log in through your usual app — never through a link.",
+  },
+  {
+    id: "voiceclone", kind: "call", from: "📞 Incoming call · 'Bank of Vostan Fraud Team'", genuine: false,
+    body: "\"We've detected fraud on your account. Your money is at risk right now. To protect it, you need to move your balance to a safe account immediately. I'll stay on the line and give you the details.\"",
+    flags: ["A 'safe account' does not exist — that is the scam", "Pressure to act while they stay on the line", "Real fraud teams freeze cards; they never ask you to move money", "Voice cloning can make a call sound exactly like your bank"],
+    explain: "This is authorised push payment fraud — the most expensive scam type. If anyone tells you to move money to keep it safe, hang up and call your bank on the number printed on your card.",
+  },
+  {
+    id: "crypto", kind: "social", from: "@wealth_mindset_vst · Varngram", genuine: false,
+    body: "I turned ₺200 into ₺9,400 in TWO WEEKS with VostCoin staking. GUARANTEED returns, zero risk. Spots are limited — DM me 'WEALTH' to get in before it closes 🚀💰",
+    flags: ["'Guaranteed returns' is a guarantee of a scam", "Artificial scarcity — 'limited spots', 'before it closes'", "Recruiting through DMs, not a regulated platform", "If the returns were real, they wouldn't need you"],
+    explain: "Nobody can guarantee investment returns. High return always means high risk — anyone promising both is taking your money, not growing it.",
+  },
+  {
+    id: "romance", kind: "sms", from: "Daniyar ❤", genuine: false,
+    body: "I know we've only talked online but I feel so close to you. My visa fee is stuck and I can't fly out to meet you without ₺350. Could you send it? I'll pay you back the moment we're together ❤",
+    flags: ["You've never met — and money has entered the chat", "Emotional pressure tied to an urgent payment", "A stranger who needs YOUR money to come to YOU"],
+    explain: "Romance scams cost victims more per person than almost any other fraud. The relationship is the product; the 'emergency' is the invoice.",
+  },
+  {
+    id: "estatement", kind: "email", from: "Bank of Vostan <no-reply@bankofvostan.vs>", subject: "Your May e-statement is ready", genuine: true,
+    body: "Hello Ali, your statement for May is now available. To view it, log in to the Bank of Vostan app or website as usual. We will never ask for your PIN or password by email.",
+    flags: ["Greets you by name", "No link to click, no details requested — log in your usual way", "No urgency, no threat, no fee"],
+    explain: "This is what a genuine bank message looks like: calm, no links to chase, and it tells you to log in the way you always do.",
+  },
+  {
+    id: "gp", kind: "sms", from: "VARENA HEALTH CTR", genuine: true,
+    body: "Reminder: you have an appointment on Tue 18 June at 10:30. Reply C to confirm or X to cancel. Call us on 01 555 0142 to rearrange.",
+    flags: ["Expected — you booked this appointment", "No payment, no link, no personal details requested", "A real phone number you can verify independently"],
+    explain: "Genuine reminders ask for nothing of value. When in doubt, contact the organisation through a number or app you already trust — never the one in the message.",
+  },
+];
+
+
+// ─── Scam Lab chrome + message renderer (hoisted so timers don't remount them) ───
+function ScamShell({ children, footer, counter, onBack }) {
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>THE SCAM LAB · FRAUD RECOGNITION UNIT</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {counter && <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>{counter}</div>}
+          <button onClick={onBack} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid ${C.borderL}`, padding: "6px 14px", fontFamily: FONT_M, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 2 }}>← BACK</button>
+        </div>
+      </div>
+      <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #160a1e 50%, #2a0f1e 100%)`, overflow: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 26 }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(0deg, transparent 0, transparent 38px, ${C.coral}0a 38px, ${C.coral}0a 39px), repeating-linear-gradient(90deg, transparent 0, transparent 38px, ${C.coral}0a 38px, ${C.coral}0a 39px)`, pointerEvents: "none" }} />
+        {children}
+      </div>
+      <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>{footer || "STOP · CHALLENGE · PROTECT"}</div>
+      </div>
+    </div>
+  );
+}
+
+// Render a message in its native habitat — SMS bubble, email window, call card, social post
+function ScamMessageCard({ s, frozen }) {
+    const kindMeta = {
+      sms:    { label: "TEXT MESSAGE", icon: "💬", tint: C.teal },
+      email:  { label: "EMAIL", icon: "✉️", tint: C.blue },
+      call:   { label: "PHONE CALL", icon: "📞", tint: C.coral },
+      social: { label: "SOCIAL POST", icon: "📱", tint: C.purple },
+    }[s.kind];
+    return (
+      <div className="popupIn" style={{ background: C.surface, borderRadius: 10, width: "100%", maxWidth: 640, boxShadow: "0 30px 80px rgba(0,0,0,0.7)", overflow: "hidden", border: `1px solid ${C.borderCream}`, opacity: frozen ? 0.92 : 1 }}>
+        {/* Window chrome */}
+        <div style={{ background: C.ink, padding: "9px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 15 }}>{kindMeta.icon}</span>
+          <span style={{ fontFamily: FONT_M, fontSize: 9, color: kindMeta.tint, letterSpacing: "0.26em", fontWeight: 800 }}>{kindMeta.label}</span>
+          <span style={{ flex: 1 }} />
+          <span style={{ display: "flex", gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.coral }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.gold }} />
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: C.teal }} />
+          </span>
+        </div>
+        <div style={{ padding: "18px 22px" }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.textMuted, letterSpacing: "0.14em", fontWeight: 700, marginBottom: 4 }}>FROM: <span style={{ color: C.ink }}>{s.from}</span></div>
+          {s.subject && <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.ink, fontWeight: 800, marginBottom: 8 }}>{s.subject}</div>}
+          <div style={{
+            fontFamily: s.kind === "call" ? FONT_D : FONT_B, fontSize: s.kind === "call" ? 16 : 14, color: C.text, lineHeight: 1.6,
+            fontStyle: s.kind === "call" ? "italic" : "normal", fontWeight: s.kind === "call" ? 600 : 500,
+            background: s.kind === "sms" || s.kind === "social" ? C.surface2 : "transparent",
+            padding: s.kind === "sms" || s.kind === "social" ? "12px 16px" : 0,
+            borderRadius: s.kind === "sms" ? "14px 14px 14px 3px" : s.kind === "social" ? 6 : 0,
+            border: s.kind === "social" ? `1px solid ${C.borderCream}` : "none",
+          }}>{s.body}</div>
+        </div>
+      </div>
+    );
+  }
+
+function ScamLab({ state, dispatch, onBack }) {
+  const [phase, setPhase] = useState("intro"); // intro | round | reveal | result
+  const [deck, setDeck] = useState([]);
+  const [round, setRound] = useState(0);
+  const [answers, setAnswers] = useState([]); // {id, said, correct, timedOut}
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [lastPick, setLastPick] = useState(null);
+
+  const startRun = () => {
+    // Shuffle, keep all 7 but play 6: always include both genuine ones
+    const scams = SCAM_SCENARIOS.filter(s => !s.genuine).sort(() => Math.random() - 0.5).slice(0, 4);
+    const real = SCAM_SCENARIOS.filter(s => s.genuine);
+    const d = [...scams, ...real].sort(() => Math.random() - 0.5);
+    setDeck(d); setRound(0); setAnswers([]); setTimeLeft(10); setLastPick(null); setPhase("round");
+  };
+
+  const current = deck[round];
+
+  // Countdown timer per round
+  useEffect(() => {
+    if (phase !== "round") return;
+    if (timeLeft <= 0) {
+      // Hesitation counts as a miss — scammers rely on you freezing
+      SFX.alarm();
+      setAnswers(a => [...a, { id: current.id, said: null, correct: false, timedOut: true }]);
+      setLastPick(null);
+      setPhase("reveal");
+      return;
+    }
+    const t = setTimeout(() => { setTimeLeft(t2 => t2 - 0.1); if (timeLeft < 3.05 && timeLeft > 2.95) SFX.tick(); }, 100);
+    return () => clearTimeout(t);
+  }, [phase, timeLeft, current]);
+
+  const answer = (saysScam) => {
+    const correct = saysScam !== current.genuine;
+    if (correct) SFX.coin(); else SFX.lose();
+    setAnswers(a => [...a, { id: current.id, said: saysScam, correct, timedOut: false }]);
+    setLastPick(saysScam);
+    setPhase("reveal");
+  };
+
+  const nextRound = () => {
+    if (round + 1 >= deck.length) {
+      const score = answers.filter(a => a.correct).length;
+      if (score >= 5) { dispatch({ type: "AWARD_BADGE", id: "scamSpotter" }); }
+      SFX.win();
+      setPhase("result");
+    } else {
+      setRound(r => r + 1); setTimeLeft(10); setLastPick(null); setPhase("round");
+    }
+  };
+
+  const counter = phase !== "intro" && phase !== "result" ? `MESSAGE ${round + 1} OF ${deck.length}` : null;
+  const Shell = ({ children, footer }) => (
+    <ScamShell counter={counter} onBack={onBack} footer={footer}>{children}</ScamShell>
+  );
+  const MessageCard = ScamMessageCard;
+
+  // ─── INTRO ───
+  if (phase === "intro") {
+    return (
+      <Shell>
+        <div className="popupIn" style={{ background: "rgba(255,248,238,0.98)", padding: "40px 50px", maxWidth: 720, width: "100%", borderRadius: 6, boxShadow: "0 30px 80px rgba(0,0,0,0.6)", border: `2px solid ${C.coral}`, position: "relative", zIndex: 2 }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.coral, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● SIX MESSAGES · TEN SECONDS EACH</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 50, color: C.ink, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.95, marginBottom: 12 }}>The Scam Lab.</div>
+          <div style={{ fontFamily: FONT_D, fontSize: 18, color: C.gold, fontWeight: 700, fontStyle: "italic", marginBottom: 20 }}>Real messages land in real inboxes. Some are genuine. Some want your money. You get ten seconds — because that's all the scammer gives you.</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24 }}>
+            <div style={{ background: C.surface2, border: `2px solid ${C.coral}`, borderRadius: 4, padding: "12px 14px" }}>
+              <div style={{ fontSize: 22 }}>🛑</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.coral, letterSpacing: "0.2em", fontWeight: 800, marginTop: 4 }}>STOP</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 11, color: C.text, lineHeight: 1.4, marginTop: 4 }}>Urgency is the weapon. A pause defeats it.</div>
+            </div>
+            <div style={{ background: C.surface2, border: `2px solid ${C.gold}`, borderRadius: 4, padding: "12px 14px" }}>
+              <div style={{ fontSize: 22 }}>🔍</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 10, color: "#a87918", letterSpacing: "0.2em", fontWeight: 800, marginTop: 4 }}>CHALLENGE</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 11, color: C.text, lineHeight: 1.4, marginTop: 4 }}>Could this be fake? It's fine to refuse, hang up, ignore.</div>
+            </div>
+            <div style={{ background: C.surface2, border: `2px solid ${C.teal}`, borderRadius: 4, padding: "12px 14px" }}>
+              <div style={{ fontSize: 22 }}>🛡</div>
+              <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.teal, letterSpacing: "0.2em", fontWeight: 800, marginTop: 4 }}>PROTECT</div>
+              <div style={{ fontFamily: FONT_B, fontSize: 11, color: C.text, lineHeight: 1.4, marginTop: 4 }}>Contact the real organisation through a route YOU trust.</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <button onClick={onBack} style={{ background: "transparent", color: C.textMuted, border: `1px solid ${C.borderCream}`, padding: "14px 24px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
+            <button onClick={startRun} style={{ background: C.coral, color: "#fff", border: "none", padding: "16px 42px", fontFamily: FONT_M, fontSize: 13, fontWeight: 800, letterSpacing: "0.28em", cursor: "pointer", borderRadius: 3, boxShadow: `0 14px 36px ${C.coral}88` }}>OPEN THE INBOX 🕵</button>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ─── ROUND ───
+  if (phase === "round" && current) {
+    const timerPct = Math.max(0, (timeLeft / 10) * 100);
+    const urgent = timeLeft <= 3;
+    return (
+      <Shell footer={`SCORE SO FAR · ${answers.filter(a => a.correct).length} OF ${answers.length}`}>
+        <div style={{ width: "100%", maxWidth: 640, position: "relative", zIndex: 2, display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Timer bar */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: urgent ? C.red : C.gold, letterSpacing: "0.28em", fontWeight: 800 }}>{urgent ? "⚠ DECIDE NOW" : "● TRUST YOUR GUT"}</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 26, color: urgent ? C.red : C.textCream, fontWeight: 900, lineHeight: 1 }}>{Math.max(0, timeLeft).toFixed(1)}s</div>
+            </div>
+            <div style={{ height: 8, background: "rgba(255,248,238,0.12)", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${timerPct}%`, background: urgent ? C.red : `linear-gradient(90deg, ${C.gold}, ${C.coral})`, transition: "width 0.1s linear", borderRadius: 4 }} />
+            </div>
+          </div>
+
+          <MessageCard s={current} />
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <button onClick={() => answer(true)} style={{ background: C.coral, color: "#fff", border: "none", padding: "18px", fontFamily: FONT_M, fontSize: 14, fontWeight: 800, letterSpacing: "0.26em", cursor: "pointer", borderRadius: 5, boxShadow: `0 12px 32px ${C.coral}66`, transition: "transform 0.12s" }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-3px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>🚨 SCAM</button>
+            <button onClick={() => answer(false)} style={{ background: C.teal, color: "#fff", border: "none", padding: "18px", fontFamily: FONT_M, fontSize: 14, fontWeight: 800, letterSpacing: "0.26em", cursor: "pointer", borderRadius: 5, boxShadow: `0 12px 32px ${C.teal}66`, transition: "transform 0.12s" }}
+              onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-3px)"} onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}>✅ GENUINE</button>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ─── REVEAL ───
+  if (phase === "reveal" && current) {
+    const last = answers[answers.length - 1];
+    const verdictColor = last.correct ? C.teal : C.coral;
+    return (
+      <Shell footer={`SCORE · ${answers.filter(a => a.correct).length} OF ${answers.length}`}>
+        <div style={{ width: "100%", maxWidth: 640, position: "relative", zIndex: 2, display: "flex", flexDirection: "column", gap: 14 }}>
+          {/* Verdict banner */}
+          <div className="popupIn" style={{ background: verdictColor, color: "#fff", borderRadius: 6, padding: "14px 22px", display: "flex", alignItems: "center", gap: 14, boxShadow: `0 14px 44px ${verdictColor}88`, border: "2px solid #fff" }}>
+            <div style={{ fontSize: 32 }}>{last.timedOut ? "⏱" : last.correct ? "✓" : "✗"}</div>
+            <div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, letterSpacing: "0.26em", fontWeight: 800, opacity: 0.9 }}>
+                {last.timedOut ? "YOU FROZE — SCAMMERS COUNT ON THAT" : last.correct ? "CORRECT" : "CAUGHT OUT"}
+              </div>
+              <div style={{ fontFamily: FONT_D, fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}>
+                This was {current.genuine ? "GENUINE" : "A SCAM"}.
+              </div>
+            </div>
+          </div>
+
+          <MessageCard s={current} frozen />
+
+          {/* Flags */}
+          <div className="popupIn" style={{ background: "rgba(255,248,238,0.97)", borderRadius: 6, padding: "16px 22px", borderLeft: `5px solid ${current.genuine ? C.teal : C.coral}` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: current.genuine ? C.teal : C.coral, letterSpacing: "0.26em", fontWeight: 800, marginBottom: 8 }}>
+              {current.genuine ? "● WHY IT'S SAFE" : "⚑ THE RED FLAGS"}
+            </div>
+            {current.flags.map((f, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, fontFamily: FONT_B, fontSize: 12.5, color: C.text, lineHeight: 1.5, marginBottom: 4, fontWeight: 600 }}>
+                <span style={{ color: current.genuine ? C.teal : C.coral, fontWeight: 900 }}>{current.genuine ? "✓" : "⚑"}</span>{f}
+              </div>
+            ))}
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.borderCream}`, fontFamily: FONT_B, fontSize: 12, color: C.textMuted, lineHeight: 1.5, fontStyle: "italic" }}>{current.explain}</div>
+          </div>
+
+          <button onClick={nextRound} style={{ background: C.gold, color: C.ink, border: "none", padding: "15px", fontFamily: FONT_M, fontSize: 12, fontWeight: 800, letterSpacing: "0.26em", cursor: "pointer", borderRadius: 4, boxShadow: `0 12px 32px ${C.gold}55` }}>
+            {round + 1 >= deck.length ? "SEE YOUR RESULTS →" : "NEXT MESSAGE →"}
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
+  // ─── RESULT ───
+  if (phase === "result") {
+    const score = answers.filter(a => a.correct).length;
+    const total = answers.length;
+    const headline = score === total ? "Unscammable. For today." : score >= 5 ? "Sharp eyes. They'd have to work for it." : score >= 3 ? "Half-armed. The fast ones would get you." : "Easy money — for them. Time to train.";
+    const grade = score === total ? "A+" : score >= 5 ? "A" : score >= 4 ? "B" : score >= 3 ? "C" : "D";
+    return (
+      <Shell footer="FRAUD IS THE MOST COMMON CRIME IN MOST ADVANCED ECONOMIES">
+        <div className="popupIn" style={{ background: "rgba(255,248,238,0.98)", padding: "32px 42px", maxWidth: 700, width: "100%", borderRadius: 8, boxShadow: "0 40px 100px rgba(0,0,0,0.7)", borderTop: `6px solid ${score >= 5 ? C.teal : C.coral}`, position: "relative", zIndex: 2, maxHeight: "86%", overflowY: "auto" }}>
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.coral, letterSpacing: "0.3em", fontWeight: 800 }}>● SCAM LAB · DEBRIEF</div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 18, marginTop: 8 }}>
+            <div style={{ fontFamily: FONT_D, fontSize: 96, color: C.ink, fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 0.85 }}>{score}<span style={{ fontSize: 36, color: C.textMuted }}>/{total}</span></div>
+            <div style={{ paddingBottom: 10 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.22em", fontWeight: 700 }}>CAUGHT</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 34, color: score >= 5 ? C.teal : score >= 3 ? C.gold : C.coral, fontWeight: 900, lineHeight: 1 }}>GRADE {grade}</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: FONT_D, fontSize: 19, color: C.ink, fontWeight: 700, fontStyle: "italic", marginTop: 6 }}>{headline}</div>
+
+          {score >= 5 && (
+            <div className="popupIn" style={{ marginTop: 14, padding: "12px 16px", background: `${C.coral}12`, border: `2px solid ${C.coral}`, borderRadius: 5, display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 30 }}>🕵</span>
+              <div>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.24em", fontWeight: 800 }}>BADGE EARNED</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.ink, fontWeight: 900 }}>Scam Spotter</div>
+              </div>
+            </div>
+          )}
+
+          {/* The three rules, restated as the takeaway */}
+          <div style={{ marginTop: 14, padding: "14px 18px", background: C.surface2, borderRadius: 5, borderLeft: `4px solid ${C.gold}` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: "#a87918", letterSpacing: "0.24em", fontWeight: 800, marginBottom: 6 }}>● THE ONLY THREE RULES YOU NEED</div>
+            <div style={{ fontFamily: FONT_B, fontSize: 12.5, color: C.text, lineHeight: 1.65 }}>
+              <strong>Stop</strong> — urgency is the weapon; a pause defeats it. <strong>Challenge</strong> — it is never rude to refuse, hang up or ignore. <strong>Protect</strong> — contact the real organisation through a route you already trust, never one inside the message.
+            </div>
+          </div>
+
+          <TakeThisHome game="scam" accent={C.coral} dispatch={dispatch} options={[
+            "Tell one family member about the 'safe account' phone scam",
+            "Turn on two-step verification for my bank and email",
+            "Make a rule: never pay or click from inside a message — always go to the app",
+          ]} />
+
+          <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+            <button onClick={startRun} style={{ flex: 1, background: "transparent", color: C.text, border: `1.5px solid ${C.borderCream}`, padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>NEW INBOX →</button>
+            <button onClick={onBack} style={{ flex: 1, background: C.coral, color: "#fff", border: "none", padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>DONE</button>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  return null;
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   THE MINIMUM PAYMENT TRAP — credit & debt (v26)
+   One debt. Three repayment strategies. Watch the trap close.
+   ════════════════════════════════════════════════════════════ */
+function DebtTrap({ state, dispatch, onBack }) {
+  const [phase, setPhase] = useState("setup"); // setup | racing | result
+  const [debt, setDebt] = useState(1200);
+  const APR = 24.9;
+  const monthlyRate = APR / 100 / 12;
+
+  const makeLanes = (d) => ([
+    { id: "min",  name: "MINIMUM ONLY", icon: "🪤", color: C.coral,  desc: "Pay what the card asks", balance: d, interestPaid: 0, totalPaid: 0, months: 0, done: false, pay: (bal) => Math.max(25, bal * 0.025) },
+    { id: "mid",  name: "FIXED ₺60",    icon: "📅", color: C.gold,   desc: "Same amount every month", balance: d, interestPaid: 0, totalPaid: 0, months: 0, done: false, pay: () => 60 },
+    { id: "high", name: "FIXED ₺120",   icon: "⚡", color: C.teal,   desc: "Attack the balance", balance: d, interestPaid: 0, totalPaid: 0, months: 0, done: false, pay: () => 120 },
+  ]);
+
+  const [lanes, setLanes] = useState(() => makeLanes(1200));
+  const [month, setMonth] = useState(0);
+  const [running, setRunning] = useState(false);
+
+  // Race tick — months advance; once the fixed lanes finish, fast-forward
+  useEffect(() => {
+    if (!running || phase !== "racing") return;
+    const allDone = lanes.every(l => l.done);
+    if (allDone || month >= 300) {
+      setRunning(false);
+      SFX.win();
+      dispatch({ type: "AWARD_BADGE", id: "debtDestroyer" });
+      setPhase("result");
+      return;
+    }
+    const finishedCount = lanes.filter(l => l.done).length;
+    const speed = finishedCount >= 2 ? 30 : 130;
+    const t = setTimeout(() => {
+      setLanes(prev => prev.map(l => {
+        if (l.done) return l;
+        const interest = l.balance * monthlyRate;
+        let payment = Math.min(l.pay(l.balance), l.balance + interest);
+        const newBal = Math.max(0, l.balance + interest - payment);
+        const done = newBal <= 0.5;
+        return { ...l, balance: done ? 0 : newBal, interestPaid: l.interestPaid + interest, totalPaid: l.totalPaid + payment, months: l.months + 1, done };
+      }));
+      setMonth(m => m + 1);
+      if (month % 12 === 0) SFX.tick();
+    }, speed);
+    return () => clearTimeout(t);
+  }, [running, phase, month, lanes, monthlyRate, dispatch]);
+
+  const fmtYrs = (m) => m >= 12 ? `${Math.floor(m / 12)}y ${m % 12}m` : `${m}m`;
+
+  // ─── SETUP ───
+  if (phase === "setup") {
+    return (
+      <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+        <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.purple, animation: "pulse 1.4s infinite" }} />
+            <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>THE MINIMUM PAYMENT TRAP · CREDIT LAB</div>
+          </div>
+          <button onClick={onBack} style={{ background: "transparent", color: C.textCreamDim, border: `1px solid ${C.borderL}`, padding: "6px 14px", fontFamily: FONT_M, fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 2 }}>← BACK</button>
+        </div>
+
+        <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #140a28 50%, #2a1438 100%)`, padding: 30, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "auto" }}>
+          <div className="popupIn" style={{ background: "rgba(255,248,238,0.98)", padding: "40px 50px", maxWidth: 760, width: "100%", borderRadius: 6, boxShadow: "0 30px 80px rgba(0,0,0,0.6)", border: `2px solid ${C.purple}` }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.purple, letterSpacing: "0.32em", fontWeight: 800, marginBottom: 6 }}>● ONE DEBT · THREE WAYS OUT</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 46, color: C.ink, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.95, marginBottom: 12 }}>The Minimum Payment Trap.</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 17, color: C.gold, fontWeight: 700, fontStyle: "italic", marginBottom: 20 }}>
+              Zara's washing machine died on a Tuesday. The replacement went on a credit card at {APR}% <Term k="APR">APR</Term>. The statement arrives with a friendly suggestion: "just pay the minimum."
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 22 }}>
+              <StrategyPreview color={C.coral} icon="🪤" name="MINIMUM ONLY" desc="Pay only what the card asks. The 'easy' option." />
+              <StrategyPreview color={C.gold} icon="📅" name="FIXED ₺60" desc="A steady ₺60 every month, no matter what." />
+              <StrategyPreview color={C.teal} icon="⚡" name="FIXED ₺120" desc="Hit it hard. Short pain, long gain." />
+            </div>
+
+            <div style={{ padding: "18px 22px", background: C.surface2, borderRadius: 6, border: `1px solid ${C.borderCream}`, marginBottom: 22 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.text, letterSpacing: "0.22em", fontWeight: 800 }}>THE DEBT ON THE CARD</div>
+                <div style={{ fontFamily: FONT_D, fontSize: 34, color: C.purple, fontWeight: 900 }}>₺{debt.toLocaleString()}</div>
+              </div>
+              <input type="range" min="600" max="3000" step="100" value={debt} onChange={(e) => setDebt(parseInt(e.target.value))} style={{ width: "100%", accentColor: C.purple }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: FONT_M, color: C.textMuted, marginTop: 4 }}>
+                <span>₺600 · a phone</span><span>₺1,200 · a washer</span><span>₺3,000 · a holiday</span>
+              </div>
+              <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.textMuted, marginTop: 10, lineHeight: 1.4 }}>
+                {APR}% APR · <Term k="minimum payment">minimum payment</Term> is 2.5% of the balance (floor ₺25) · interest charged monthly.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button onClick={onBack} style={{ background: "transparent", color: C.textMuted, border: `1px solid ${C.borderCream}`, padding: "14px 24px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", cursor: "pointer", borderRadius: 3 }}>← WALK AWAY</button>
+              <button onClick={() => { setLanes(makeLanes(debt)); setMonth(0); setPhase("racing"); setRunning(true); SFX.stamp(); }} style={{ background: C.purple, color: "#fff", border: "none", padding: "16px 42px", fontFamily: FONT_M, fontSize: 13, fontWeight: 800, letterSpacing: "0.28em", cursor: "pointer", borderRadius: 3, boxShadow: `0 14px 36px ${C.purple}88` }}>
+                RUN THE STATEMENTS ⛓
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── RACING + RESULT ───
+  const minLane = lanes.find(l => l.id === "min");
+  const highLane = lanes.find(l => l.id === "high");
+
+  return (
+    <div style={{ position: "absolute", inset: 0, background: "#04060f", zIndex: 40, display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#000", height: 48, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 32px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: phase === "result" ? C.gold : C.purple, animation: "pulse 1.4s infinite" }} />
+          <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>● {phase === "result" ? "TRAP REVEALED" : "LIVE"} · ₺{debt.toLocaleString()} AT {APR}% APR</div>
+        </div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>{phase === "result" ? "FINAL STATEMENTS" : "EACH TICK = ONE MONTH"}</div>
+      </div>
+
+      <div style={{ flex: 1, position: "relative", background: `linear-gradient(180deg, #04060f 0%, #140a28 40%, #2a1438 100%)`, overflow: "hidden", padding: "20px 36px 14px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+        {/* Month counter */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.purple, letterSpacing: "0.32em", fontWeight: 800 }}>STATEMENTS PAID</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 58, color: C.textCream, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 0.9, textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>{month}<span style={{ fontSize: 20, color: C.textCreamDim, fontWeight: 700 }}> months ({fmtYrs(month)})</span></div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.28em", fontWeight: 700 }}>THE LENDER HAS EARNED</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 28, color: C.coral, fontWeight: 900, letterSpacing: "-0.01em" }}>₺{Math.round(lanes.reduce((s, l) => s + l.interestPaid, 0)).toLocaleString()}</div>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.18em", marginTop: 2 }}>in interest, across all three</div>
+          </div>
+        </div>
+
+        {/* THE LANES — debt columns draining down */}
+        <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, minHeight: 0 }}>
+          {lanes.map((lane) => {
+            const pctLeft = Math.min(100, (lane.balance / debt) * 100);
+            return (
+              <div key={lane.id} style={{ position: "relative", background: "rgba(255,248,238,0.04)", border: `2px solid ${lane.done ? C.teal : `${lane.color}88`}`, borderRadius: 8, padding: "12px 14px 16px", display: "flex", flexDirection: "column", overflow: "hidden", transition: "border 0.3s" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 40, height: 40, background: lane.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, borderRadius: 8 }}>{lane.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: FONT_M, fontSize: 10, color: lane.color, letterSpacing: "0.22em", fontWeight: 800 }}>{lane.name}</div>
+                    <div style={{ fontFamily: FONT_M, fontSize: 8.5, color: C.textCreamDim, letterSpacing: "0.1em" }}>{lane.desc}</div>
+                  </div>
+                  {lane.done && <div style={{ fontSize: 20 }}>🔓</div>}
+                </div>
+
+                {/* Draining debt column */}
+                <div style={{ flex: 1, position: "relative", background: "rgba(0,0,0,0.3)", borderRadius: 6, overflow: "hidden", minHeight: 160 }}>
+                  <div style={{
+                    position: "absolute", top: 0, left: 0, right: 0,
+                    height: `${pctLeft}%`,
+                    background: `linear-gradient(180deg, ${lane.color} 0%, ${lane.color}cc 60%, ${lane.color}88 100%)`,
+                    transition: "height 0.18s linear",
+                  }}>
+                    <div style={{ position: "absolute", bottom: -4, left: 0, right: 0, height: 8, background: lane.color, borderRadius: "0 0 50% 50% / 0 0 100% 100%", opacity: 0.9 }} />
+                    <div style={{ position: "absolute", inset: 0, backgroundImage: `repeating-linear-gradient(0deg, transparent 0, transparent 6px, rgba(0,0,0,0.1) 6px, rgba(0,0,0,0.1) 7px)` }} />
+                  </div>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", zIndex: 2 }}>
+                    {lane.done ? (
+                      <div className="popupIn" style={{ textAlign: "center" }}>
+                        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.26em", fontWeight: 800 }}>✓ DEBT FREE</div>
+                        <div style={{ fontFamily: FONT_D, fontSize: 30, color: C.textCream, fontWeight: 900 }}>{fmtYrs(lane.months)}</div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontFamily: FONT_M, fontSize: 9, color: pctLeft > 40 ? "rgba(255,255,255,0.85)" : C.textCreamDim, letterSpacing: "0.22em", fontWeight: 700 }}>STILL OWED</div>
+                        <div style={{ fontFamily: FONT_D, fontSize: 30, color: pctLeft > 40 ? "#fff" : C.textCream, fontWeight: 900, textShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>₺{Math.round(lane.balance).toLocaleString()}</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lane stats */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+                  <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "6px 8px" }}>
+                    <div style={{ fontFamily: FONT_M, fontSize: 7.5, color: C.textCreamDim, letterSpacing: "0.18em", fontWeight: 700 }}>INTEREST PAID</div>
+                    <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.coral, fontWeight: 900 }}>₺{Math.round(lane.interestPaid).toLocaleString()}</div>
+                  </div>
+                  <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "6px 8px" }}>
+                    <div style={{ fontFamily: FONT_M, fontSize: 7.5, color: C.textCreamDim, letterSpacing: "0.18em", fontWeight: 700 }}>MONTHS</div>
+                    <div style={{ fontFamily: FONT_D, fontSize: 16, color: C.textCream, fontWeight: 900 }}>{lane.done ? lane.months : month}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* RESULT OVERLAY */}
+        {phase === "result" && (
+          <div className="popupIn" style={{
+            position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+            background: "rgba(255,248,238,0.98)", padding: "26px 36px", borderRadius: 10,
+            maxWidth: 720, width: "92%", border: `3px solid ${C.purple}`, zIndex: 10,
+            boxShadow: `0 40px 100px rgba(0,0,0,0.7)`, maxHeight: "88%", overflowY: "auto",
+          }}>
+            <div style={{ fontFamily: FONT_M, fontSize: 11, color: C.purple, letterSpacing: "0.32em", fontWeight: 800 }}>● THE TRAP, IN NUMBERS</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 32, color: C.ink, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.05, marginTop: 6 }}>
+              Same debt. Same card. {minLane.months >= highLane.months * 2 ? `${Math.round(minLane.months / Math.max(1, highLane.months))}× longer` : "Years longer"} in the trap.
+            </div>
+
+            <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+              {lanes.map(l => (
+                <div key={l.id} style={{ background: C.surface2, borderTop: `4px solid ${l.color}`, borderRadius: 4, padding: "12px 14px" }}>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: l.color, letterSpacing: "0.2em", fontWeight: 800 }}>{l.icon} {l.name}</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 24, color: C.ink, fontWeight: 900, marginTop: 4 }}>{l.done ? fmtYrs(l.months) : `${fmtYrs(300)}+`}</div>
+                  <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.1em", marginTop: 2 }}>to debt-free</div>
+                  <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.coral, fontWeight: 800, marginTop: 6 }}>₺{Math.round(l.interestPaid).toLocaleString()} interest</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 14, padding: "14px 18px", background: `${C.purple}12`, borderLeft: `4px solid ${C.purple}`, borderRadius: 4 }}>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.purple, letterSpacing: "0.22em", fontWeight: 800 }}>● THE LESSON</div>
+              <div style={{ fontFamily: FONT_D, fontSize: 15, color: C.ink, fontWeight: 700, lineHeight: 1.45, marginTop: 4 }}>
+                The minimum payment is not a kindness — it is a product. It is calculated to keep you paying interest for as long as legally possible. Every Marka above the minimum goes straight at the debt itself.
+              </div>
+              <div style={{ fontFamily: FONT_B, fontSize: 12, color: C.textMuted, lineHeight: 1.45, marginTop: 6, fontStyle: "italic" }}>
+                Minimum-only paid ₺{Math.round(minLane.interestPaid).toLocaleString()} in interest. Fixed ₺120 paid ₺{Math.round(highLane.interestPaid).toLocaleString()}. The difference bought the lender's lunch — for years.
+              </div>
+            </div>
+
+            <TakeThisHome game="debt" accent={C.purple} dispatch={dispatch} options={[
+              "Check what I'm actually paying on any card or BNPL balance",
+              "Set a fixed repayment above the minimum, even ₺10 more",
+              "Pause before putting anything new on credit this month",
+            ]} />
+
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button onClick={() => { setPhase("setup"); setRunning(false); }} style={{ flex: 1, background: "transparent", color: C.text, border: `1.5px solid ${C.borderCream}`, padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>TRY ANOTHER DEBT →</button>
+              <button onClick={onBack} style={{ flex: 1, background: C.purple, color: "#fff", border: "none", padding: "14px 20px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.22em", cursor: "pointer", borderRadius: 3 }}>DONE</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: "#000", height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.32em" }}>THE MINIMUM PAYMENT IS A PRODUCT · NOT A FAVOUR</div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   PAUSE MENU (Esc) — progress, badges, journal, sound (v26)
+   ════════════════════════════════════════════════════════════ */
+function PauseMenu({ state, dispatch, onClose, soundOn, onToggleSound }) {
+  const questOrder = ["q1","q2","q3","q4","q5","q6","q7","q8","q9","q10"];
+  const doneSet = new Set(state.completedQuests);
+  const reflections = state.reflections || [];
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,6,15,0.88)", zIndex: 998, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)", padding: 30 }}>
+      <div onClick={(e) => e.stopPropagation()} className="popupIn" style={{ background: "rgba(255,248,238,0.98)", borderRadius: 8, maxWidth: 880, width: "100%", maxHeight: "88vh", overflowY: "auto", boxShadow: "0 40px 120px rgba(0,0,0,0.8)", border: `2px solid ${C.gold}` }}>
+        {/* Header */}
+        <div style={{ background: C.ink, padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderRadius: "6px 6px 0 0" }}>
+          <div>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.gold, letterSpacing: "0.32em", fontWeight: 800 }}>● PAUSED · GREAT VOSTAN</div>
+            <div style={{ fontFamily: FONT_D, fontSize: 26, color: C.textCream, fontWeight: 900, letterSpacing: "-0.02em" }}>Your day so far.</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button onClick={onToggleSound} style={{ background: "transparent", color: C.textCream, border: `1.5px solid ${C.borderL}`, padding: "9px 16px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", cursor: "pointer", borderRadius: 3 }}>
+              {soundOn ? "🔊 SOUND ON" : "🔇 SOUND OFF"}
+            </button>
+            <button onClick={onClose} style={{ background: C.gold, color: C.ink, border: "none", padding: "9px 18px", fontFamily: FONT_M, fontSize: 10, fontWeight: 800, letterSpacing: "0.18em", cursor: "pointer", borderRadius: 3 }}>▶ RESUME</button>
+          </div>
+        </div>
+
+        <div style={{ padding: "22px 28px", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 20 }}>
+          {/* LEFT: quest line */}
+          <div>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.coral, letterSpacing: "0.26em", fontWeight: 800, marginBottom: 10 }}>● THE STORY · DAY {state.day}</div>
+            {questOrder.map((qid) => {
+              const q = QUESTS[qid];
+              const done = doneSet.has(qid);
+              const active = state.activeQuest === qid;
+              return (
+                <div key={qid} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.borderCream}55`, opacity: done || active ? 1 : 0.45 }}>
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: done ? C.teal : active ? C.coral : C.surface3, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, animation: active ? "pulse 1.4s infinite" : "none" }}>
+                    {done ? "✓" : active ? "●" : ""}
+                  </div>
+                  <div style={{ fontFamily: FONT_B, fontSize: 12.5, color: C.ink, fontWeight: done ? 600 : active ? 800 : 500, lineHeight: 1.35 }}>{q.title}</div>
+                </div>
+              );
+            })}
+            <div style={{ marginTop: 12, fontFamily: FONT_M, fontSize: 10, color: C.textMuted, letterSpacing: "0.14em", fontWeight: 700 }}>XP {state.xp} · {state.notes.length} PERSPECTIVES GATHERED</div>
+          </div>
+
+          {/* RIGHT: badges + journal */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <div style={{ fontFamily: FONT_M, fontSize: 9, color: "#a87918", letterSpacing: "0.26em", fontWeight: 800, marginBottom: 10 }}>🏅 BADGES · {(state.badges || []).length} OF {Object.keys(BADGES).length}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {Object.entries(BADGES).map(([id, b]) => {
+                  const earned = (state.badges || []).includes(id);
+                  return (
+                    <div key={id} title={b.desc} style={{ background: earned ? `${b.color}14` : C.surface2, border: `1.5px solid ${earned ? b.color : C.borderCream}`, borderRadius: 5, padding: "9px 11px", display: "flex", gap: 9, alignItems: "center", opacity: earned ? 1 : 0.45, filter: earned ? "none" : "grayscale(0.9)" }}>
+                      <span style={{ fontSize: 20 }}>{b.icon}</span>
+                      <div>
+                        <div style={{ fontFamily: FONT_D, fontSize: 12, color: C.ink, fontWeight: 800, lineHeight: 1.1 }}>{b.name}</div>
+                        <div style={{ fontFamily: FONT_M, fontSize: 7.5, color: earned ? b.color : C.textMuted, letterSpacing: "0.12em", fontWeight: 700, marginTop: 1 }}>{earned ? "EARNED" : "LOCKED"}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {reflections.length > 0 && (
+              <div>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.teal, letterSpacing: "0.26em", fontWeight: 800, marginBottom: 8 }}>🪞 TAKING HOME</div>
+                {reflections.slice(-4).map((r, i) => (
+                  <div key={i} style={{ fontFamily: FONT_B, fontSize: 11.5, color: C.text, lineHeight: 1.45, padding: "5px 0", borderBottom: `1px solid ${C.borderCream}55`, fontStyle: "italic" }}>"{r.text}"</div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: "auto", display: "flex", gap: 8 }}>
+              <button onClick={() => { if (window.confirm("Restart the whole demo? Your saved progress will be wiped.")) { dispatch({ type: "RESET" }); onClose(); } }} style={{ flex: 1, background: "transparent", color: C.coral, border: `1.5px solid ${C.coral}`, padding: "11px", fontFamily: FONT_M, fontSize: 10, fontWeight: 700, letterSpacing: "0.18em", cursor: "pointer", borderRadius: 3 }}>↶ RESTART DEMO</button>
+            </div>
+            <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.14em", textAlign: "center" }}>PROGRESS SAVES AUTOMATICALLY · PRESS ESC TO RESUME</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 // ─── Future You — 30 year life sim (the original BankPanel content) ─────
 function FutureYouSim({ state, dispatch, onBack }) {
@@ -4909,6 +5920,18 @@ function FutureYouSim({ state, dispatch, onBack }) {
               <div style={{ fontFamily: FONT_D, fontSize: 56, color: C.ink, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1, marginBottom: 6 }}>You have ₺{Math.round(wealth).toLocaleString()}.</div>
               <div style={{ fontFamily: FONT_H, fontSize: 24, color: C.gold, fontWeight: 600, marginBottom: 24 }}>
                 {wealth > 600000 ? "Comfortable retirement awaits. Future You is grinning." : wealth > 300000 ? "Solid foundation. The next decade matters." : wealth > 100000 ? "Modest. There's still time to push." : "Tight. Lessons learned the hard way."}
+              </div>
+
+              {/* THE COMPOUND REVEAL — people guess deposits built the pile. Watch the teal. (v26) */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textMuted, letterSpacing: "0.22em", fontWeight: 800, marginBottom: 6 }}>WHERE THE PILE ACTUALLY CAME FROM</div>
+                <div style={{ display: "flex", height: 34, borderRadius: 5, overflow: "hidden", border: `1.5px solid ${C.borderCream}` }}>
+                  <div style={{ width: `${Math.max(4, Math.min(96, (totalIn / Math.max(wealth, 1)) * 100))}%`, background: C.coral, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_M, fontSize: 9.5, color: "#fff", fontWeight: 800, letterSpacing: "0.1em", whiteSpace: "nowrap", overflow: "hidden", transition: "width 1s ease-out" }}>YOUR DEPOSITS</div>
+                  <div style={{ flex: 1, background: C.teal, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_M, fontSize: 9.5, color: "#fff", fontWeight: 800, letterSpacing: "0.1em", whiteSpace: "nowrap", overflow: "hidden" }}>{growth > 0 ? "COMPOUND GROWTH" : ""}</div>
+                </div>
+                <div style={{ fontFamily: FONT_B, fontSize: 11.5, color: C.textMuted, marginTop: 6, fontStyle: "italic", lineHeight: 1.45 }}>
+                  {growth > totalIn ? `The growth (₺${Math.round(growth).toLocaleString()}) is bigger than everything you put in — that is compound interest doing the heavy lifting.` : growth > 0 ? `₺${Math.round(growth).toLocaleString()} of this pile is money your money made on its own.` : "This run, your deposits did all the work — markets and choices ate the growth."}
+                </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 22 }}>
@@ -7206,7 +8229,7 @@ function Popups({ popups, dispatch }) {
   return (
     <div style={{ position: "absolute", top: 110, left: 22, display: "flex", flexDirection: "column", gap: 8, zIndex: 6, pointerEvents: "none" }}>
       {popups.map((p) => (
-        <div key={p.id} className="popupIn" style={{ background: p.type === "level" ? C.gold : p.type === "note" ? C.green : p.type === "quest" ? C.coral : C.blue, color: "#fff", padding: "11px 18px", borderRadius: 4, minWidth: 240, boxShadow: "0 10px 30px rgba(26,16,8,0.25)" }}>
+        <div key={p.id} className="popupIn" style={{ background: p.type === "badge" ? C.purple : p.type === "level" ? C.gold : p.type === "note" ? C.green : p.type === "quest" ? C.coral : C.blue, color: "#fff", padding: "11px 18px", borderRadius: 4, minWidth: 240, boxShadow: "0 10px 30px rgba(26,16,8,0.25)" }}>
           <div style={{ fontFamily: FONT_D, fontSize: 15, fontWeight: 600 }}>{p.text}</div>
           {p.sub && <div style={{ fontSize: 11, opacity: 0.95, fontFamily: FONT_M, marginTop: 2, letterSpacing: "0.08em" }}>{p.sub}</div>}
         </div>
@@ -7216,7 +8239,7 @@ function Popups({ popups, dispatch }) {
 }
 
 // ─── INTRO ──────────────────────────────────────────────────
-function IntroScreen({ onStart }) {
+function IntroScreen({ onStart, canResume, onResume }) {
   // Sequential reveal: 0=sky only, 1=buildings rise, 2=title text, 3=reserve glows, 4=desc+button
   const [phase, setPhase] = useState(0);
   useEffect(() => {
@@ -7240,7 +8263,7 @@ function IntroScreen({ onStart }) {
           <div style={{ width: 10, height: 10, borderRadius: "50%", background: C.coral, animation: "pulse 1.4s infinite" }} />
           <div style={{ fontFamily: FONT_M, fontSize: 10, color: C.gold, letterSpacing: "0.34em", fontWeight: 800 }}>LIFESMART × BANK OF ENGLAND · PROTOTYPE</div>
         </div>
-        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v25 · GREAT VOSTAN EDITION</div>
+        <div style={{ fontFamily: FONT_M, fontSize: 9, color: C.textCreamDim, letterSpacing: "0.22em" }}>v26 · THE LEARNING ECONOMY</div>
       </div>
 
       {/* Full-bleed cityscape */}
@@ -7454,6 +8477,17 @@ function IntroScreen({ onStart }) {
           <span style={{ fontSize: 20, animation: "pulse 1.6s infinite" }}>→</span>
         </button>
 
+        {/* v26 — resume a saved run */}
+        {canResume && (
+          <button onClick={(e) => { e.stopPropagation(); onResume && onResume(); }} style={{
+            marginTop: 16, background: "transparent", color: C.gold, border: `1.5px solid ${C.gold}`,
+            padding: "13px 36px", fontFamily: FONT_M, fontSize: 11, fontWeight: 800, letterSpacing: "0.3em",
+            cursor: phase >= 4 ? "pointer" : "default", borderRadius: 2,
+            opacity: phase >= 4 ? 1 : 0, transition: "opacity 0.8s 0.7s",
+            pointerEvents: phase >= 4 ? "auto" : "none",
+          }}>↻ RESUME SAVED GAME</button>
+        )}
+
         {/* "click to skip" hint during animation */}
         {phase < 4 && (
           <div style={{
@@ -7477,6 +8511,10 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [showIntro, setShowIntro] = useState(true);
   const [showControlsHint, setShowControlsHint] = useState(false);
+  const [pauseOpen, setPauseOpen] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => !SFX.isMuted());
+  const [hasSave, setHasSave] = useState(false);
+  const toggleSound = () => { const m = !SFX.isMuted(); SFX.setMuted(m); setSoundOn(!m); if (!m) SFX.coin(); };
 
   // Click ripple — small gold burst at the cursor on every click. Looks great on camera.
   const [ripples, setRipples] = useState([]);
@@ -7488,11 +8526,42 @@ export default function App() {
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       const id = Math.random().toString(36).slice(2, 8);
       setRipples((r) => [...r, { id, x: e.clientX, y: e.clientY }]);
+      SFX.click();
       setTimeout(() => setRipples((r) => r.filter((p) => p.id !== id)), 720);
     };
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, []);
+
+  // v26 — Esc toggles the pause menu
+  useEffect(() => {
+    const h = (e) => { if (e.key === "Escape" && !showIntro) setPauseOpen((p) => !p); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [showIntro]);
+
+  // v26 — auto-save so a school lesson can stop and resume
+  useEffect(() => {
+    try { if (window.localStorage?.getItem("gv_save_v26")) setHasSave(true); } catch (e) {}
+  }, []);
+  useEffect(() => {
+    if (showIntro) return;
+    const t = setTimeout(() => {
+      try {
+        const snapshot = { ...state, popups: [], notifications: [], openPanel: null, meetingActive: false, tradingFloorActive: false, pressActive: false, recoveryActive: false, newsroomActive: false, voiceActive: false, walkHomeActive: false, montageActive: false, sleepAnim: 0, target: null, moving: false, mapOpen: false, phoneOpen: false, thought: null };
+        window.localStorage?.setItem("gv_save_v26", JSON.stringify(snapshot));
+      } catch (e) {}
+    }, 800);
+    return () => clearTimeout(t);
+  }, [state, showIntro]);
+
+  const resumeSave = () => {
+    try {
+      const raw = window.localStorage?.getItem("gv_save_v26");
+      if (raw) dispatch({ type: "LOAD_STATE", saved: JSON.parse(raw) });
+    } catch (e) {}
+    setShowIntro(false);
+  };
 
   // Show controls hint briefly after intro dismisses
   useEffect(() => {
@@ -7679,6 +8748,9 @@ export default function App() {
         <button onClick={() => dispatch({ type: "TOGGLE_MAP" })} style={{ position: "absolute", top: 22, right: 22, background: C.surface, color: C.ink, border: `2px solid ${C.coral}`, padding: "10px 18px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.18em", cursor: "pointer", borderRadius: 4, boxShadow: "0 6px 18px rgba(0,0,0,0.4)", zIndex: 8, display: "flex", alignItems: "center", gap: 8 }}>
           🗺 <span>MAP</span>
         </button>
+        <button onClick={toggleSound} title="Toggle sound" style={{ position: "absolute", top: 70, right: 22, background: C.surface, color: C.ink, border: `2px solid ${soundOn ? C.teal : C.borderCream}`, padding: "8px 14px", fontFamily: FONT_M, fontSize: 11, fontWeight: 700, letterSpacing: "0.14em", cursor: "pointer", borderRadius: 4, boxShadow: "0 6px 18px rgba(0,0,0,0.4)", zIndex: 8 }}>
+          {soundOn ? "🔊" : "🔇"}
+        </button>
         {state.mapOpen && <TreasureMap state={state} dispatch={dispatch} />}
 
         <div style={{ position: "absolute", bottom: 24, left: 22, background: C.surface, border: `1.5px solid ${C.coral}`, borderRadius: 4, padding: "10px 18px", fontSize: 11, fontFamily: FONT_M, color: C.text, letterSpacing: "0.16em", fontWeight: 700, boxShadow: "0 6px 20px rgba(0,0,0,0.4)", display: "flex", alignItems: "center", gap: 14 }}>
@@ -7687,6 +8759,8 @@ export default function App() {
           <span><span style={{ background: C.ink, color: C.gold, padding: "2px 7px", borderRadius: 2, fontFamily: FONT_M, fontWeight: 800, marginRight: 4 }}>E</span> TALK / ENTER</span>
           <span style={{ color: C.borderCream }}>·</span>
           <span>🗺 <span style={{ marginLeft: 4 }}>MAP</span></span>
+          <span style={{ color: C.borderCream }}>·</span>
+          <span><span style={{ background: C.ink, color: C.gold, padding: "2px 7px", borderRadius: 2, fontFamily: FONT_M, fontWeight: 800, marginRight: 4 }}>ESC</span> MENU</span>
         </div>
 
         {/* Watermark for video capture */}
@@ -7734,7 +8808,9 @@ export default function App() {
           return npc ? <NpcDialogue npc={npc} dispatch={dispatch} state={state} /> : null;
         })()}
 
-        {showIntro && <IntroScreen onStart={() => setShowIntro(false)} />}
+        {pauseOpen && !showIntro && <PauseMenu state={state} dispatch={dispatch} onClose={() => setPauseOpen(false)} soundOn={soundOn} onToggleSound={toggleSound} />}
+
+        {showIntro && <IntroScreen onStart={() => setShowIntro(false)} canResume={hasSave} onResume={resumeSave} />}
 
         {/* DEMO CONTROLS — floating bottom-right, lets presenter skip anywhere */}
         {!showIntro && !state.meetingActive && (
